@@ -49,5 +49,11 @@ return {
 	[M3 ..   "UP"] = "assign_top",
 	[M3 .. "DOWN"] = "assign_bottom",
 	[M3 .. "LEFT"] = "assign_left",
-	[M3 .."RIGHT"] = "assign_right"
+	[M3 .."RIGHT"] = "assign_right",
+
+	-- others
+	["m"] = "test",
+	["ESCAPE"] = "shutdown",
+	["TAB"] = "reset"
+
 };

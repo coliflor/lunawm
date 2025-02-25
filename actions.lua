@@ -2,61 +2,23 @@ local actions = {};
 
 -- chain window
 local function wrun(fun)
-	return function()
-		if (priowin ~= nil) then
-			fun(priowin);
-		end
-	end
+	 return function()
+			if (priowin ~= nil) then
+				 fun(priowin);
+			end
+	 end
 end
 
--- use a rendertarget indirection for the screenshot to work around some driver
--- bugs for the egl-dri/platform + mesa + ??? when trying to read the front buffer
-actions.save_screenshot = function()
-	local cp = prio_clock_pulse;
-	local ctr = 20;
-	prio_clock_pulse = function(...)
-		ctr = ctr - 1;
-		if (ctr == 0) then
-			zap_resource("prio_ss.png");
-			local dst = alloc_surface(VRESW, VRESH);
-			local nsrf = null_surface(VRESW, VRESH);
-			show_image(nsrf);
-			image_sharestorage(WORLDID, nsrf);
-			define_rendertarget(dst, {nsrf}, RENDERTARGET_DETACH, RENDERTARGET_NOSCALE, 0);
-			rendertarget_forceupdate(dst);
-			save_screenshot("prio_ss.png", FORMAT_PNG_FLIP, dst);
-			delete_image(dst);
-			prio_clock_pulse = cp;
-			system_message("screenshot saved to prio_ss.png");
-		end
-		cp(...);
-	end
+actions.test = function()
+	 prio_terminal(0, 0, 100, 100)
 end
 
-local active_rec;
-actions.record = function()
-	if (valid_vid(active_rec)) then
-		delete_image(active_rec);
-		active_rec = nil;
-		system_message("stopped recording");
-	else
-		zap_resource("prio_rec.mkv");
-		active_rec = alloc_surface(1280, 720);
-		if (valid_vid(active_rec)) then
-			local tsrf = null_surface(1280, 720);
-			show_image(tsrf);
-			image_texfilter(tsrf, FILTER_BILINEAR);
-			image_sharestorage(WORLDID, tsrf);
-			image_set_txcos_default(tsrf, true);
-			define_recordtarget(active_rec, "prio_rec.mkv", "vpreset=8:noaudio:fps=30",
-				{tsrf}, {}, RENDERTARGET_DETACH, RENDERTARGET_NOSCALE, -1, function(src, status)
-					if (status.kind == "terminated") then
-						delete_image(src);
-						active_rec = nil;
-					end
-				end);
-		end
-	end
+actions.shutdown = function()
+	 shutdown();
+end
+
+actions.reset = function()
+	 system_collapse();
 end
 
 actions.destroy_active_tab = wrun(function(wnd) wnd:lost(wnd.target); end);
@@ -99,12 +61,12 @@ actions.set_temp_prefix_1 = function() priosym.prefix = "t1_"; end
 
 actions.hide = wrun(function(wnd) wnd:hide(); end);
 actions.copy = wrun(function(wnd)
-	if (wnd.clipboard_msg) then
-		prioclip = wnd.clipboard_msg;
-	end
+			if (wnd.clipboard_msg) then
+				 prioclip = wnd.clipboard_msg;
+			end
 end);
 actions.paste = wrun(function(wnd)
-	wnd:paste(CLIPBOARD_MESSAGE);
+			wnd:paste(CLIPBOARD_MESSAGE);
 end);
 
 --

@@ -179,8 +179,6 @@ local function window_update_tprops(wnd)
 		image_scale_txcos(wnd.canvas,
 			wnd.width / ip.width, wnd.height / ip.height);
 	end
-
-	image_shader(wnd.canvas, wnd.shader and wnd.shader or "DEFAULT");
 end
 
 -- assumption: cursor is on [vid]
@@ -372,7 +370,6 @@ local function update_drag_hint(ctx, vid)
 		local hint = color_surface(1, 1, unpack(priocfg.select_color));
 		link_image(hint, ctx.wnd.anchor);
 		image_inherit_order(hint, true);
-		image_shader(hint, shader_get("maximize_hint"));
 		image_mask_clear(hint, MASK_POSITION);
 		order_image(hint, -1);
 		ctx.drag_hint = hint;
@@ -455,15 +452,12 @@ local function tab_sel(wnd, tab)
 	wnd.aid = tab.source_audio;
 	wnd.inertia = tab.inertia;
 	wnd.autocrop = tab.autocrop;
-	wnd.shader = tab.shader;
 	wnd.force_size = tab.force_size;
 	wnd.flip_y = tab.flip_y;
 	wnd.clipboard_in = tab.clipboard_in;
 	wnd.clipboard_out = tab.clipboard_out;
 	wnd.mouse_cursor = tab.mouse_cursor;
 	wnd.mouse_hidden = tab.mouse_hidden;
-
-	image_shader(wnd.canvas, shader_get(tab.shader));
 
 -- send show event
 	if (valid_vid(tab.source, TYPE_FRAMESERVER)) then
@@ -575,7 +569,6 @@ local function build_decorations(wnd, opts)
 		wnd.decor[v] = color_surface(1, 1, 0, 0, 0);
 		image_inherit_order(wnd.decor[v], true);
 		blend_image(wnd.decor[v], priocfg.border_alpha);
-		image_shader(wnd.decor[v], shader_get("decor_" .. v));
 		wnd.margin[v] = bw;
 	end
 
@@ -1250,8 +1243,6 @@ local function window_tab_add(wnd, source, callback, opts)
 		return;
 	end
 
-	image_shader(new.vid, shader_get("tab"));
-
 -- just take some number, we want the dimensions, relayout will
 -- fix positioning and color settings
 	new.label = render_text(priocfg.tab_fontstr .. tostring(ind));
@@ -1290,7 +1281,6 @@ local function window_tab_add(wnd, source, callback, opts)
 	if (opts) then
 		new.force_size = opts.force_size;
 		new.autocrop = opts.autocrop;
-		new.shader = opts.shader;
 		new.flip_y = opts.flip_y;
 		new.inactive_color = opts.inactive_color;
 		new.active_color = opts.active_color;
@@ -1415,7 +1405,6 @@ function prio_new_window(vid, aid, opts)
 -- per tab toggles
 		force_size = opts.force_size,
 		autocrop = opts.autocrop,
-		shader = opts.shader,
 		flip_y = opts.flip_y
 	};
 

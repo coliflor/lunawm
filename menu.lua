@@ -8,38 +8,7 @@
 -- hidden = don't show in UI menus
 --
 
-local system = {
-{
-	label = "Exit",
-	name = "exit",
-	handler = function()
-		shutdown();
-	end
-},
-{
-	label = "Reset",
-	name = "reset",
-	handler = function()
-		system_collapse();
-	end
-},
-{
-	label = "Screenshot",
-	name = "screenshot",
-	eval = function() return false; end,
-	handler = function()
-		prioactions.save_screenshot();
-	end
-},
-{
-	label = "Record",
-	name = "record",
---	eval = function() return false; end,
-	handler = function()
-		prioactions.record();
-	end
-}
-};
+local system = {};
 
 local function gen_show_menu()
 	local res = {};
@@ -115,14 +84,6 @@ local global = {
 		prio_menu_spawn(gen_show_menu(), mx, my);
 	end
 },
-{
-	label = "System",
-	name = "system",
-	handler = function()
-		local mx, my = mouse_xy();
-		prio_menu_spawn(system, mx, my);
-	end
-}
 };
 
 local context = {

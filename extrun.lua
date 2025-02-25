@@ -115,9 +115,6 @@ function prio_static_image(resource, x, y, w, h, opts)
 			end
 			move_image(hnd, x, y);
 
-			if (shader) then
-				image_shader(hnd, shader_get(opts.shader));
-			end
 		else
 			delete_image(hnd);
 			warning("could not load " .. tostring(resource and resource or ""));

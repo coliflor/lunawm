@@ -17,13 +17,10 @@ CLIPBOARD_MESSAGE = "";
 function prio()
 	priosym = system_load("builtin/keyboard.lua")(); -- keyboard translation
 	priocfg = system_load("config.lua")();
-	system_load("uifx.lua")(); -- shadows
 	system_load("builtin/mouse.lua")(); -- mouse gesture abstraction etc.
 	system_load("window.lua")(); -- window creation
 	system_load("menu.lua")(); -- global menus
 	system_load("extrun.lua")(); -- helper functions for window spawn
-	system_load("autorun.lua")(); -- whatever the user needs to have setup
-	system_load("shaders.lua")(); -- eyecandy
 	prioactions = system_load("actions.lua")(); -- bindable actions
 	priobindings = system_load("keybindings.lua")(); -- keysym+mods -> actions
 
@@ -40,7 +37,6 @@ function prio()
 -- we'll always "overdraw" when updating due to the background image
 	rendertarget_noclear(WORLDID, true);
 	priobg = fill_surface(VRESW, VRESH, 64, 64, 64);
-	image_shader(priobg, shader_get("background"));
 	show_image(priobg);
 
 -- asynch- load background and overwrite existing if found
@@ -187,7 +183,6 @@ function prio_region_input(iotbl)
 			else
 				local col = color_surface(1, 1, unpack(priocfg.select_color));
 				blend_image(col, priocfg.select_opacity);
-				image_shader(col, shader_get("selection"));
 				mouse_select_begin(col);
 			end
 		else

@@ -10,9 +10,24 @@ local function wrun(fun)
 end
 
 actions.test = function()
-	 prio_terminal(0, 0, 100, 100)
-end
+    local tag = tags and tags[current_tag] or {} -- Get the current tag's windows
+    local n = #tag -- Number of windows on the current tag
 
+    local w, h -- Initialize width and height
+
+    if n == 0 then -- No windows yet, take full screen
+        w = VRESW
+        h = VRESH
+    elseif n == 1 then -- One window (master), take master area
+        w = VRESW * priocfg.master_ratio
+        h = VRESH
+    else -- More than one window, calculate stack area
+        w = VRESW * (1 - priocfg.master_ratio) -- Stack area width
+        h = VRESH / (n) -- Stack area height (adjust as needed for your layout)
+    end
+
+    create_terminal(0, 0, w, h)
+end
 actions.shutdown = function()
 	 shutdown();
 end
@@ -20,6 +35,9 @@ end
 actions.reset = function()
 	 system_collapse();
 end
+
+actions.view_tag_1 = wrun(function(wnd) current_tag = 1; wnd:arrange(tags, 1); end);
+actions.view_tag_2 = wrun(function(wnd) current_tag = 2; wnd:arrange(tags, 2); end);
 
 actions.destroy_active_tab = wrun(function(wnd) wnd:lost(wnd.target); end);
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy(); end);
@@ -69,7 +87,4 @@ actions.paste = wrun(function(wnd)
 			wnd:paste(CLIPBOARD_MESSAGE);
 end);
 
---
--- others: hide all, copy, paste
---
 return actions;

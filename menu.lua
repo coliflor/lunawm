@@ -29,30 +29,8 @@ end
 
 local global = {
 {
-	label = "New",
-	name = "new",
-	handler = function()
-		prio_input = prio_region_input;
-	end
-},
-{
-	label = function()
-		local cnt = 0;
-		for k,v in pairs(priowindows) do cnt = cnt + 1; end
-		return cnt > 0 and "Delete" or nil;
-	end,
-	name = "delete",
-	handler = function()
-		mouse_switch_cursor("destroy");
-		priostate = function(wnd)
-			priostate = nil;
-			mouse_switch_cursor();
-			if (wnd and not wnd.delete_protect) then
-				wnd:destroy();
-				return true;
-			end
-		end
-	end
+	label = "Nothing",
+	name = "nothing",
 },
 {
 	label = function()
@@ -137,14 +115,6 @@ local context = {
 	label = "Close",
 	handler = function(ctx)
 		ctx[1].lost(ctx[1], ctx[2].source);
-	end
-},
-{
-	name = "save_img",
-	label = "Output Image",
-	eval = function() return false; end,
-	handler = function(ctx)
-		save_screenshot("prio_imgss.png", FORMAT_PNG, ctx[2].source);
 	end
 },
 };

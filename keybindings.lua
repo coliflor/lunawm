@@ -63,5 +63,5 @@ return {
 	 ["j"] = "focus_next", -- Focus next window
 	 ["k"] = "focus_prev", -- Focus previous window
 	 ["q"] = "destroy_active_window", -- Close window
-
+	 [M2 .. "z"]  = "drag_window", -- Drag Window
 };

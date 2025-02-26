@@ -41,7 +41,7 @@ function prio()
 	 end
 
 	 function create_terminal(x, y, w, h) -- Wrapper function
-			prio_terminal(x, y, w, h, clients, tags, current_tag, arrange)
+			prio_terminal(x, y, w, h, clients, arrange)
 	 end
 
 	 -- mipmap is build-time default off, vfilter is bilinear
@@ -180,34 +180,6 @@ function prio_normal_input(iotbl)
 	 -- forward normally if the window is connected to an external process
 	 if (priowin and valid_vid(priowin.target, TYPE_FRAMESERVER)) then
 			target_input(priowin.target, iotbl);
-	 end
-end
-
--- selection / creation input handler, when switching to the region
--- select through menu/new, the normal _input function is simply
--- replaced with this one.
-function prio_region_input(iotbl)
-	 mouse_switch_cursor("new");
-	 if (iotbl.mouse) then
-			if (iotbl.digital) then
-				 if (not iotbl.active) then
-						return;
-				 end
-				 if (mouse_state().in_select) then
-						mouse_select_end(function(x1, y1, x2, y2)
-									if (x2-y1 > 32 and y2-y1 > 32) then
-										 prio_terminal(x1, y1, x2 - x1, y2 - y1);
-									end
-									prio_input = prio_normal_input;
-						end);
-				 else
-						local col = color_surface(1, 1, unpack(priocfg.select_color));
-						blend_image(col, priocfg.select_opacity);
-						mouse_select_begin(col);
-				 end
-			else
-				 mouse_iotbl_input(iotbl);
-			end
 	 end
 end
 

@@ -10,23 +10,23 @@ local function wrun(fun)
 end
 
 actions.test = function()
-    local tag = tags and tags[current_tag] or {} -- Get the current tag's windows
-    local n = #tag -- Number of windows on the current tag
+	 local tag = tags and tags[current_tag] or {} -- Get the current tag's windows
+	 local n = #tag -- Number of windows on the current tag
 
-    local w, h -- Initialize width and height
+	 local w, h -- Initialize width and height
 
-    if n == 0 then -- No windows yet, take full screen
-        w = VRESW
-        h = VRESH
-    elseif n == 1 then -- One window (master), take master area
-        w = VRESW * priocfg.master_ratio
-        h = VRESH
-    else -- More than one window, calculate stack area
-        w = VRESW * (1 - priocfg.master_ratio) -- Stack area width
-        h = VRESH / (n) -- Stack area height (adjust as needed for your layout)
-    end
+	 if n == 0 then -- No windows yet, take full screen
+			w = VRESW
+			h = VRESH
+	 elseif n == 1 then -- One window (master), take master area
+			w = VRESW * priocfg.master_ratio
+			h = VRESH
+	 else -- More than one window, calculate stack area
+			w = VRESW * (1 - priocfg.master_ratio) -- Stack area width
+			h = VRESH / (n) -- Stack area height (adjust as needed for your layout)
+	 end
 
-    create_terminal(0, 0, w, h)
+	 create_terminal(0, 0, w, h)
 end
 actions.shutdown = function()
 	 shutdown();
@@ -36,8 +36,62 @@ actions.reset = function()
 	 system_collapse();
 end
 
-actions.view_tag_1 = wrun(function(wnd) current_tag = 1; wnd:arrange(tags, 1); end);
-actions.view_tag_2 = wrun(function(wnd) current_tag = 2; wnd:arrange(tags, 2); end);
+local function view_tag(tag_number, wnd)
+    current_tag = tag_number;
+
+    -- Create a snapshot of the target tag's windows
+    local target_tag_windows = {};
+    if (tags[tag_number]) then
+        for _, tag_wnd in ipairs(tags[tag_number]) do
+            table.insert(target_tag_windows, tag_wnd);
+        end
+    end
+
+    -- Show all windows in the target tag, even if they were previously hidden
+    for _, tag_wnd in ipairs(target_tag_windows) do
+        if (tag_wnd and type(tag_wnd.show) == "function") then
+            tag_wnd:show();
+        end
+    end
+
+    -- Hide all windows not in the target tag, except the focused window
+    for _, other_wnd in ipairs(prio_windows_linear(false)) do
+        if (other_wnd ~= wnd) then
+            local found = false;
+            for _, tag_wnd in ipairs(target_tag_windows) do
+                if (tag_wnd == other_wnd) then
+                    found = true;
+                    break;
+                end
+            end
+            if (not found) then
+                other_wnd:hide();
+            end
+        end
+    end
+
+    -- Debug: Print the windows in the current tag
+    print("Tag " .. tag_number .. " windows:");
+    if (tags[tag_number]) then
+        for _, tag_wnd in ipairs(tags[tag_number]) do
+            if (tag_wnd and tag_wnd.id) then
+                print("  Window ID: " .. tag_wnd.id);
+            else
+                print("  Window (no ID or invalid)");
+            end
+        end
+    else
+        print("  (No windows in this tag)");
+    end
+end
+
+actions.view_tag_1 = wrun(function(wnd)
+    view_tag(1, wnd);
+end);
+
+actions.view_tag_2 = wrun(function(wnd)
+    view_tag(2, wnd);
+end);
 
 actions.destroy_active_tab = wrun(function(wnd) wnd:lost(wnd.target); end);
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy(); end);

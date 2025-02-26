@@ -3,6 +3,8 @@ local dirtbl = {"l", "r", "t", "b"};
 -- need a linear array for window draw order management
 local wndlist = {};
 
+local window_id_counter = 0; -- Initialize a counter for window IDs
+
 function prio_windows_iconsize()
 	 return priocfg.menu_fontsz * 4 * FONT_PT_SZ * (VPPCM / 28.3687);
 end
@@ -59,71 +61,71 @@ end
 -- 6  7  8
 --
 local function resize_move(ctx, dx, dy, move, inx, iny)
-    local wnd = ctx.wnd;
-    if (not wnd.anchor) then
-        return;
-    end
-    local props = image_surface_properties(wnd.anchor);
+	 local wnd = ctx.wnd;
+	 if (not wnd.anchor) then
+			return;
+	 end
+	 local props = image_surface_properties(wnd.anchor);
 
-    -- Skip resizing if move is 2 (top bar vertical resize)
-    if (move == 2) then
-        return;
-    end
+	 -- Skip resizing if move is 2 (top bar vertical resize)
+	 if (move == 2) then
+			return;
+	 end
 
-    -- setup two accumulators
-    if (not ctx.state) then
-        ctx.state = {dx, dy};
-    else
-        ctx.state[1] = ctx.state[1] + dx;
-        ctx.state[2] = ctx.state[2] + dy;
-    end
+	 -- setup two accumulators
+	 if (not ctx.state) then
+			ctx.state = {dx, dy};
+	 else
+			ctx.state[1] = ctx.state[1] + dx;
+			ctx.state[2] = ctx.state[2] + dy;
+	 end
 
-    local rzx = 0;
-    local rzy = 0;
+	 local rzx = 0;
+	 local rzy = 0;
 
-    -- if the absolute accumulation exceeds inertia, resize that many steps
-    if (math.abs(ctx.state[1]) >= inx) then
-        rzx = math.floor(ctx.state[1] / inx);
-        ctx.state[1] = ctx.state[1] - (rzx * inx);
-    end
+	 -- if the absolute accumulation exceeds inertia, resize that many steps
+	 if (math.abs(ctx.state[1]) >= inx) then
+			rzx = math.floor(ctx.state[1] / inx);
+			ctx.state[1] = ctx.state[1] - (rzx * inx);
+	 end
 
-    if (math.abs(ctx.state[2]) >= iny) then
-        rzy = math.floor(ctx.state[2] / iny);
-        ctx.state[2] = ctx.state[2] - (rzy * iny);
-    end
+	 if (math.abs(ctx.state[2]) >= iny) then
+			rzy = math.floor(ctx.state[2] / iny);
+			ctx.state[2] = ctx.state[2] - (rzy * iny);
+	 end
 
-    local neww = wnd.width + rzx * inx;
-    local newh = wnd.height + rzy * iny;
-    neww = neww < wnd.min_w and wnd.min_w or neww;
-    newh = newh < wnd.min_h and wnd.min_h or newh;
+	 local neww = wnd.width + rzx * inx;
+	 local newh = wnd.height + rzy * iny;
+	 neww = neww < wnd.min_w and wnd.min_w or neww;
+	 newh = newh < wnd.min_h and wnd.min_h or newh;
 
-    if (neww == wnd.width and newh == wnd.height) then
-        return;
-    end
+	 if (neww == wnd.width and newh == wnd.height) then
+			return;
+	 end
 
-    local nx = props.x;
-    local ny = props.y;
+	 local nx = props.x;
+	 local ny = props.y;
 
-    if (move == 1) then
-        nx = nx + (wnd.width - neww);
-        ny = ny + (wnd.height - newh);
-    elseif (move == 3) then
-        nx = nx + (wnd.width - neww);
-    elseif (move == 4) then
-        ny = ny + (wnd.height - newh);
-    end
+	 if (move == 1) then
+			nx = nx + (wnd.width - neww);
+			ny = ny + (wnd.height - newh);
+	 elseif (move == 3) then
+			nx = nx + (wnd.width - neww);
+	 elseif (move == 4) then
+			ny = ny + (wnd.height - newh);
+	 end
 
-    -- this will look "jittery" if target is slow to resize or we
-    -- don't autocrop
-    if (wnd.autocrop or wnd.force_size or not
-            valid_vid(wnd.target, TYPE_FRAMESERVER)) then
-        wnd:resize(neww, newh);
-        move_image(wnd.anchor, nx, ny);
-    else
-        target_displayhint(wnd.target, neww, newh);
-        wnd.defer_x = nx;
-        wnd.defer_y = ny;
-    end
+	 -- this will look "jittery" if target is slow to resize or we
+	 -- don't autocrop
+	 if (wnd.autocrop or wnd.force_size or not
+			 valid_vid(wnd.target, TYPE_FRAMESERVER)) then
+			wnd:resize(neww, newh);
+			move_image(wnd.anchor, nx, ny);
+	 else
+			target_displayhint(wnd.target, neww, newh);
+			wnd.defer_x = nx;
+			wnd.defer_y = ny;
+	 end
 end
 
 local function window_update_tprops(wnd)
@@ -137,7 +139,7 @@ local function window_update_tprops(wnd)
 end
 
 -- assumption: cursor is on [vid]
-local function set_trigger_point(ctx, vid)
+function set_trigger_point(ctx, vid)
 	 if (ctx.wnd.drag_track) then
 			return;
 	 end
@@ -162,7 +164,7 @@ local function set_trigger_point(ctx, vid)
 	 };
 end
 
-local function decor_v_drag(ctx, vid, dx, dy)
+function decor_v_drag(ctx, vid, dx, dy)
 	 if (ctx.wnd ~= priowin) then
 			return;
 	 end
@@ -224,7 +226,7 @@ local function decor_drop(ctx)
 	 synch_tab_sizes(ctx.wnd);
 end
 
-local function decor_h_drag(ctx, vid, dx, dy)
+function decor_h_drag(ctx, vid, dx, dy)
 	 if (ctx.wnd ~= priowin) then
 			return;
 	 end
@@ -926,7 +928,7 @@ local function window_destroy(wnd)
 	 end
 
 	 -- Call arrange AFTER removing the client
-	 arrange(tags, current_tag)
+	 arrange()
 
 end
 
@@ -1037,7 +1039,6 @@ local function window_mousebutton(ctx, devid, ind, act)
 	 end
 end
 
-
 local function window_mouseover(ctx)
 	 if (ctx.mouse_cursor) then
 			mouse_custom_cursor(ctx.mouse_cursor);
@@ -1130,54 +1131,54 @@ function prio_iter_windows(external, with_tabs)
 end
 
 local function window_tab_add(wnd, source, callback, opts)
-    local ind = 0;
-    if (wnd.tab_block) then
-        return;
-    end
+	 local ind = 0;
+	 if (wnd.tab_block) then
+			return;
+	 end
 
-    for i=1,10 do
-        if (wnd.tab_slots[i] == nil) then
-            ind = i;
-            break;
-        end
-    end
-    if (ind == 0) then
-        return;
-    end
+	 for i=1,10 do
+			if (wnd.tab_slots[i] == nil) then
+				 ind = i;
+				 break;
+			end
+	 end
+	 if (ind == 0) then
+			return;
+	 end
 
-    local new = {
-        ind = ind,
-        source = valid_vid(source) and source or null_surface(1, 1),
-        handler = callback and callback or def_tabh,
-    };
+	 local new = {
+			ind = ind,
+			source = valid_vid(source) and source or null_surface(1, 1),
+			handler = callback and callback or def_tabh,
+	 };
 
-    if (new.source == BADID) then
-        return;
-    end
+	 if (new.source == BADID) then
+			return;
+	 end
 
-    wnd.tab_slots[ind] = new;
-    wnd.tab_source[new.source] = new;
+	 wnd.tab_slots[ind] = new;
+	 wnd.tab_source[new.source] = new;
 
-    if (not wnd.active_tab) then
-        wnd.active_tab = new;
-    else
-        synch_tab_sizes(wnd);
-    end
+	 if (not wnd.active_tab) then
+			wnd.active_tab = new;
+	 else
+			synch_tab_sizes(wnd);
+	 end
 
-    if (opts) then
-        new.force_size = opts.force_size;
-        new.autocrop = opts.autocrop;
-        new.flip_y = opts.flip_y;
-        new.inactive_color = opts.inactive_color;
-        new.active_color = opts.active_color;
-        new.mouse_hidden = opts.mouse_hidden;
-    end
+	 if (opts) then
+			new.force_size = opts.force_size;
+			new.autocrop = opts.autocrop;
+			new.flip_y = opts.flip_y;
+			new.inactive_color = opts.inactive_color;
+			new.active_color = opts.active_color;
+			new.mouse_hidden = opts.mouse_hidden;
+	 end
 
-    for k,v in ipairs(wnd.event_hooks) do
-        v(wnd, "tab_added", new);
-    end
+	 for k,v in ipairs(wnd.event_hooks) do
+			v(wnd, "tab_added", new);
+	 end
 
-    return new;
+	 return new;
 end
 
 local function window_paste(wnd, msg)
@@ -1208,48 +1209,48 @@ local function window_paste(wnd, msg)
 	 end
 end
 
-function arrange(tags, current_tag)
-    local tag = tags and tags[current_tag] or {}
-    local n = #tag
+function arrange()
+	 local tag = tags and tags[current_tag] or {}
+	 local n = #tag
 
-    if n == 0 then return end
+	 if n == 0 then return end
 
-    local master_area_w = VRESW * priocfg.master_ratio
-    local master_area_h = VRESH
-    local stack_area_x = master_area_w
-    local stack_area_w = VRESW - master_area_w
-    local stack_area_h = VRESH
+	 local master_area_w = VRESW * priocfg.master_ratio
+	 local master_area_h = VRESH
+	 local stack_area_x = master_area_w
+	 local stack_area_w = VRESW - master_area_w
+	 local stack_area_h = VRESH
 
-    local border_width = priocfg.border_width or 0 -- Get border width from config or default to 0
+	 local border_width = priocfg.border_width or 0 -- Get border width from config or default to 0
 
-    if n == 1 then -- Only one window
-        local client = tag[1]
-        client.x = border_width
-        client.y = border_width
-        client.w = VRESW - 2 * border_width -- Adjust for borders
-        client.h = VRESH - 2 * border_width -- Adjust for borders
-        set_window_geometry(client)
-        return
-    end
+	 if n == 1 then -- Only one window
+			local client = tag[1]
+			client.x = border_width
+			client.y = border_width
+			client.w = VRESW - 2 * border_width -- Adjust for borders
+			client.h = VRESH - 2 * border_width -- Adjust for borders
+			set_window_geometry(client)
+			return
+	 end
 
-    -- Master window (n > 1)
-    local master = tag[1]
-    master.x = border_width
-    master.y = border_width
-    master.w = master_area_w - 2 * border_width -- Adjust for borders
-    master.h = master_area_h - 2 * border_width -- Adjust for borders
-    set_window_geometry(master)
+	 -- Master window (n > 1)
+	 local master = tag[1]
+	 master.x = border_width
+	 master.y = border_width
+	 master.w = master_area_w - 2 * border_width -- Adjust for borders
+	 master.h = master_area_h - 2 * border_width -- Adjust for borders
+	 set_window_geometry(master)
 
-    -- Stack windows (n > 1)
-    local stack_h = stack_area_h / (n - 1)
-    for i = 2, n do
-        local client = tag[i]
-        client.x = stack_area_x + border_width -- Adjust for borders
-        client.y = (i - 2) * stack_h + border_width -- Adjust for borders
-        client.w = stack_area_w - 2 * border_width -- Adjust for borders
-        client.h = stack_h - 2 * border_width -- Adjust for borders
-        set_window_geometry(client)
-    end
+	 -- Stack windows (n > 1)
+	 local stack_h = stack_area_h / (n - 1)
+	 for i = 2, n do
+			local client = tag[i]
+			client.x = stack_area_x + border_width -- Adjust for borders
+			client.y = (i - 2) * stack_h + border_width -- Adjust for borders
+			client.w = stack_area_w - 2 * border_width -- Adjust for borders
+			client.h = stack_h - 2 * border_width -- Adjust for borders
+			set_window_geometry(client)
+	 end
 end
 
 function set_window_geometry(client) --Helper function
@@ -1267,7 +1268,7 @@ local function add_client(window_id)
 	 };
 	 table.insert(clients, client);
 	 table.insert(tags[current_tag] or {}, client)
-	 arrange(tags, current_tag);
+	 arrange();
 end
 
 local function remove_client(window_id)
@@ -1285,7 +1286,7 @@ local function remove_client(window_id)
 				 break
 			end
 	 end
-	 arrange(tags, current_tag)
+	 arrange()
 end
 
 local function focus_client(window_id)
@@ -1311,7 +1312,9 @@ function prio_new_window(vid, aid, opts)
 	 show_image(vid);
 	 resize_image(vid, opts.w, opts.h);
 
+	 window_id_counter = window_id_counter + 1; -- Increment the counter
 	 local wnd = {
+			id = window_id_counter, -- Assign the current counter value as the ID
 			name = "prio_window",
 			anchor = anchor,
 			canvas = vid,

@@ -311,57 +311,49 @@ end
 
 local charset = "abcdefhigjklmnopqrstuvwxyz1234567890";
 local csetlen = string.len(charset);
-function prio_terminal(x, y, w, h, clients, tags, current_tag, passed_arrange)
-	 local arrange = passed_arrange
+function prio_terminal(x, y, w, h, clients, passed_arrange)
+    local arrange = passed_arrange;
 
-	 local key = "prio_term_";
-	 for i=1,10 do
-			local ind = math.random(1, csetlen);
-			key = key .. string.sub(charset, ind, ind);
-	 end
+    local key = "prio_term_";
+    for i = 1, 10 do
+        local ind = math.random(1, csetlen);
+        key = key .. string.sub(charset, ind, ind);
+    end
 
-	 local arg = priocfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. key;
-	 opts = wnd_type_options("terminal", opts);
+    local arg = priocfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. key;
+    opts = wnd_type_options("terminal", opts);
 
-	 launch_avfeed(arg, "terminal",
-								 function(source, status)
-										if (status.kind == "preroll") then
-											 local proptbl = {
-													x = x, y = y, w = w, h = h,
-													force_size = priocfg.force_size,
-													autocrop = true
-											 };
-											 for k,v in pairs(opts) do proptbl[k] = v; end
-											 local wnd, tab = setup_wnd(source,
-																									status.source_audio, proptbl, proptbl.shader);
+    launch_avfeed(arg, "terminal", function(source, status)
+        if (status.kind == "preroll") then
+            local proptbl = {
+                x = x,
+                y = y,
+                w = w,
+                h = h,
+                force_size = priocfg.force_size,
+                autocrop = true,
+            };
+            for k, v in pairs(opts) do
+                proptbl[k] = v;
+            end
+            local wnd, tab = setup_wnd(source, status.source_audio, proptbl, proptbl.shader);
 
-											 local window_id = wnd.id -- Get the window ID
+            if (not wnd) then
+                delete_image(source);
+                return;
+            end
 
-											 local client = { -- Create a client representation
-													window_id = window_id,
-													x = x, y = y, w = w, h = h, -- Initial geometry
-													tags = {current_tag},  -- Assign to the current tag
-													floating = false, -- Start tiled
-													anchor = wnd.anchor -- Store the anchor
-											 };
+            table.insert(clients, wnd); -- Add window directly to clients
+            table.insert(tags[current_tag], wnd); -- Add window directly to tags
 
-											 table.insert(clients, client) -- Add to the client list
-											 table.insert(tags[current_tag], client) -- Add to the current tag's list!
+            arrange(tags, current_tag); -- Call arrange after adding the window
 
-											 arrange(tags, current_tag) -- Call arrange after adding the window
+            target_updatehandler(source, prio_group_handler);
+            send_type_data(source, "terminal");
 
-											 if (not wnd) then
-													delete_image(source);
-													return;
-											 end
-
-											 target_updatehandler(source, prio_group_handler);
-											 send_type_data(source, "terminal");
-
-											 wnd:select();
-											 wnd.listen_key = key;
-											 terminal_listen(wnd);
-										end
-								 end
-	 );
+            wnd:select();
+            wnd.listen_key = key;
+            terminal_listen(wnd);
+        end
+    end);
 end

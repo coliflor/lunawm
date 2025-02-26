@@ -16,7 +16,7 @@ return {
 	 mouse_input_scale_y = 1.0,
 
 	 background = "background.png", -- will load/stretch if found
-	 animation_speed = 20,
+	 animation_speed = 0,
 	 global_gain = 1.0,
 
 	 -- external programs
@@ -47,13 +47,10 @@ return {
 	 force_size = true,
 
 	 -- window visuals
-	 border_width = 5,
+	 border_width = 10,
 	 border_alpha = 0.8,
 	 active_color = {164, 164, 192},
 	 inactive_color = {92, 92, 128},
-
-	 -- defined in uifx.lua, called after window creation
-	 effect_hook = prio_effect_hook,
 
 	 -- default tab colors
 	 tab_active = {255, 211, 0},

@@ -1,12 +1,3 @@
---
--- exports:
--- prio_windows_iconsize
--- prio_windows_linear(hide_hidden) => tbl
--- prio_sel_nearest(wnd, dir)
--- prio_menu_spawn(lst, x, y, ctx)
--- prio_new_window(vid, aid, opts)
---
-
 local dirtbl = {"l", "r", "t", "b"};
 
 -- need a linear array for window draw order management
@@ -33,44 +24,6 @@ local function reorder_windows()
 	 end
 end
 
-local function window_decor_tab_layout(wnd)
-	 -- right now, we ignore accomodating title, later
-	 if (wnd.tabs) then
-			local bw = priocfg.border_width;
-			local xpos = priocfg.tab_spacing;
-			local y = image_surface_resolve(wnd.anchor).y - (wnd.tab_labelh + bw);
-			if (y < 0) then nudge_image(wnd.anchor, 0, -1*y); end
-
-			for i,v in ipairs(wnd.tab_slots) do
-				 local w = v.label_w + bw + bw;
-				 local h = wnd.tab_labelh + bw;
-				 resize_image(v.vid, w, h);
-				 move_image(v.label, bw, bw);
-				 crop_image(v.label, v.label_w, wnd.tab_labelh);
-				 move_image(v.vid, xpos, -wnd.tab_labelh - (math.floor(0.5 * bw)));
-				 xpos = xpos + w + priocfg.tab_spacing;
-				 if (v == wnd.active_tab) then
-						local col = v.active_color and
-							 v.active_color or priocfg.tab_active;
-						image_color(v.vid, unpack(col));
-						blend_image({v.vid, v.label}, 1.0);
-						order_image(v.vid, 2);
-				 else
-						local col = v.inactive_color and v.inactive_color or
-							 priocfg.tab_inactive;
-						image_color(v.vid, unpack(col));
-						blend_image(v.vid, priocfg.tab_inactive_alpha);
-						blend_image(v.label, priocfg.tab_inactive_fontalpha);
-						order_image(v.vid, -1);
-				 end
-			end
-			if (wnd.min_w < xpos) then
-				 wnd.min_w = xpos;
-				 wnd:resize(wnd.width, wnd.height);
-			end
-	 end
-end
-
 local function tab_drop_preview(ctx)
 	 if (ctx.preview) then
 			reset_image_transform(ctx.preview);
@@ -90,7 +43,6 @@ local function window_decor_resize(wnd, neww, newh)
 	 move_image(wnd.decor.l, -bw, 0);
 	 move_image(wnd.decor.b, -bw, 0);
 	 move_image(wnd.decor.t, -bw, -bw);
-	 window_decor_tab_layout(wnd);
 end
 
 local function window_bordercolor(wnd, r, g, b)
@@ -107,68 +59,71 @@ end
 -- 6  7  8
 --
 local function resize_move(ctx, dx, dy, move, inx, iny)
-	 local wnd = ctx.wnd;
-	 if (not wnd.anchor) then
-			return;
-	 end
-	 local props = image_surface_properties(wnd.anchor);
+    local wnd = ctx.wnd;
+    if (not wnd.anchor) then
+        return;
+    end
+    local props = image_surface_properties(wnd.anchor);
 
-	 -- setup two accumulators
-	 if (not ctx.state) then
-			ctx.state = {dx, dy};
-	 else
-			ctx.state[1] = ctx.state[1] + dx;
-			ctx.state[2] = ctx.state[2] + dy;
-	 end
+    -- Skip resizing if move is 2 (top bar vertical resize)
+    if (move == 2) then
+        return;
+    end
 
-	 local rzx = 0;
-	 local rzy = 0;
+    -- setup two accumulators
+    if (not ctx.state) then
+        ctx.state = {dx, dy};
+    else
+        ctx.state[1] = ctx.state[1] + dx;
+        ctx.state[2] = ctx.state[2] + dy;
+    end
 
-	 -- if the absolute accumulation exceeds inertia, resize that many steps
-	 if (math.abs(ctx.state[1]) >= inx) then
-			rzx = math.floor(ctx.state[1] / inx);
-			ctx.state[1] = ctx.state[1] - (rzx * inx);
-	 end
+    local rzx = 0;
+    local rzy = 0;
 
-	 if (math.abs(ctx.state[2]) >= iny) then
-			rzy = math.floor(ctx.state[2] / iny);
-			ctx.state[2] = ctx.state[2] - (rzy * iny);
-	 end
+    -- if the absolute accumulation exceeds inertia, resize that many steps
+    if (math.abs(ctx.state[1]) >= inx) then
+        rzx = math.floor(ctx.state[1] / inx);
+        ctx.state[1] = ctx.state[1] - (rzx * inx);
+    end
 
-	 local neww = wnd.width + rzx * inx;
-	 local newh = wnd.height + rzy * iny;
-	 neww = neww < wnd.min_w and wnd.min_w or neww;
-	 newh = newh < wnd.min_h and wnd.min_h or newh;
+    if (math.abs(ctx.state[2]) >= iny) then
+        rzy = math.floor(ctx.state[2] / iny);
+        ctx.state[2] = ctx.state[2] - (rzy * iny);
+    end
 
-	 if (neww == wnd.width and newh == wnd.height) then
-			return;
-	 end
+    local neww = wnd.width + rzx * inx;
+    local newh = wnd.height + rzy * iny;
+    neww = neww < wnd.min_w and wnd.min_w or neww;
+    newh = newh < wnd.min_h and wnd.min_h or newh;
 
-	 local nx = props.x;
-	 local ny = props.y;
+    if (neww == wnd.width and newh == wnd.height) then
+        return;
+    end
 
-	 if (move == 1) then
-			nx = nx + (wnd.width - neww);
-			ny = ny + (wnd.height - newh);
-	 elseif (move == 2) then
-			ny = ny + (wnd.height - newh);
-	 elseif (move == 3) then
-			nx = nx + (wnd.width - neww);
-	 elseif (move == 4) then
-			ny = ny + (wnd.height - newh);
-	 end
+    local nx = props.x;
+    local ny = props.y;
 
-	 -- this will look "jittery" if target is slow to resize or we
-	 -- don't autocrop
-	 if (wnd.autocrop or wnd.force_size or not
-			 valid_vid(wnd.target, TYPE_FRAMESERVER)) then
-			wnd:resize(neww, newh);
-			move_image(wnd.anchor, nx, ny);
-	 else
-			target_displayhint(wnd.target, neww, newh);
-			wnd.defer_x = nx;
-			wnd.defer_y = ny;
-	 end
+    if (move == 1) then
+        nx = nx + (wnd.width - neww);
+        ny = ny + (wnd.height - newh);
+    elseif (move == 3) then
+        nx = nx + (wnd.width - neww);
+    elseif (move == 4) then
+        ny = ny + (wnd.height - newh);
+    end
+
+    -- this will look "jittery" if target is slow to resize or we
+    -- don't autocrop
+    if (wnd.autocrop or wnd.force_size or not
+            valid_vid(wnd.target, TYPE_FRAMESERVER)) then
+        wnd:resize(neww, newh);
+        move_image(wnd.anchor, nx, ny);
+    else
+        target_displayhint(wnd.target, neww, newh);
+        wnd.defer_x = nx;
+        wnd.defer_y = ny;
+    end
 end
 
 local function window_update_tprops(wnd)
@@ -364,68 +319,10 @@ local function get_maximize_dir()
 	 end
 end
 
-local function update_drag_hint(ctx, vid)
-	 local d = get_maximize_dir();
-	 if (d and not ctx.drag_hint) then
-			local hint = color_surface(1, 1, unpack(priocfg.select_color));
-			link_image(hint, ctx.wnd.anchor);
-			image_inherit_order(hint, true);
-			image_mask_clear(hint, MASK_POSITION);
-			order_image(hint, -1);
-			ctx.drag_hint = hint;
-	 end
-
-	 if (ctx.wnd.maximized) then
-			ctx.wnd:maximize();
-			local mx, my = mouse_xy();
-			ctx.wnd:move(mx, my);
-	 end
-
-	 local speed = priocfg.animation_speed;
-	 if (not d) then
-			if (ctx.drag_hint) then
-				 reset_image_transform(ctx.drag_hint);
-				 resize_image(ctx.drag_hint, 1, 1, speed);
-				 expire_image(ctx.drag_hint, speed);
-				 ctx.drag_hint = nil;
-			end
-			return;
-	 end
-
-	 blend_image(ctx.drag_hint, 0.5, speed);
-
-	 if (d == "t") then
-			move_image(ctx.drag_hint, 0, 0);
-			resize_image(ctx.drag_hint, VRESW, 0.5*VRESH, speed);
-	 elseif (d == "l") then
-			move_image(ctx.drag_hint, 0, 0);
-			resize_image(ctx.drag_hint, 0.5 * VRESW, VRESH, speed);
-	 elseif (d == "r") then
-			move_image(ctx.drag_hint, 0.5 * VRESW, 0);
-			resize_image(ctx.drag_hint, 0.5 * VRESW, VRESH, speed);
-	 elseif (d == "b") then
-			move_image(ctx.drag_hint, 0, 0.5 * VRESH);
-			resize_image(ctx.drag_hint, VRESW, 0.5*VRESH, speed);
-	 end
-end
-
 local function tab_drag(ctx, vid, dx, dy)
 	 -- only used when cursor is at edges
 	 mouse_switch_cursor("drag");
 	 nudge_image(ctx.wnd.anchor, dx, dy);
-	 update_drag_hint(ctx, vid);
-end
-
-local function tab_drop(ctx)
-	 if (valid_vid(ctx.drag_hint)) then
-			delete_image(ctx.drag_hint);
-			ctx.drag_hint = nil;
-	 end
-	 mouse_switch_cursor("grabhint");
-	 local dir = get_maximize_dir();
-	 if (dir) then
-			ctx.wnd:maximize(dir);
-	 end
 end
 
 local function wnd_is_tab(ctx, vid)
@@ -467,7 +364,6 @@ local function tab_sel(wnd, tab)
 	 end
 
 	 window_update_tprops(wnd);
-	 window_decor_tab_layout(wnd);
 end
 
 local function run_tab(ctx, vid, ind)
@@ -560,9 +456,6 @@ end
 -- build the decorations: tttt
 --                        l  r
 --                        bbbb and anchor for easier resize
---
--- for fancier things like rounded corners and directional shadows,
--- build and attach a shader to the decor
 local function build_decorations(wnd, opts)
 	 local bw = priocfg.border_width;
 	 for k,v in ipairs(dirtbl) do
@@ -607,7 +500,7 @@ local function build_decorations(wnd, opts)
 			if (not wnd.tab_block) then
 				 wnd.tabs_mh = {
 						wnd = wnd, name = "wnd_tabs", own = wnd_is_tab,
-						drag = tab_drag, drop = tab_drop,
+						drag = tab_drag,
 						click = tab_click, rclick = tab_rclick, button = tab_button,
 						over = tab_over, out = tab_out, hover = tab_hover,
 						dblclick = tab_dblclick
@@ -1237,88 +1130,54 @@ function prio_iter_windows(external, with_tabs)
 end
 
 local function window_tab_add(wnd, source, callback, opts)
-	 local ind = 0;
-	 if (wnd.tab_block) then
-			return;
-	 end
+    local ind = 0;
+    if (wnd.tab_block) then
+        return;
+    end
 
-	 for i=1,10 do
-			if (wnd.tab_slots[i] == nil) then
-				 ind = i;
-				 break;
-			end
-	 end
-	 if (ind == 0) then
-			return;
-	 end
+    for i=1,10 do
+        if (wnd.tab_slots[i] == nil) then
+            ind = i;
+            break;
+        end
+    end
+    if (ind == 0) then
+        return;
+    end
 
-	 local new = {
-			vid = color_surface(32, 32, 0, 0, 0),
-			ind = ind,
-			source = valid_vid(source) and source or null_surface(1, 1),
-			handler = callback and callback or def_tabh
-	 };
-	 if (new.vid == BADID) then
-			return;
-	 end
+    local new = {
+        ind = ind,
+        source = valid_vid(source) and source or null_surface(1, 1),
+        handler = callback and callback or def_tabh,
+    };
 
-	 if (new.source == BADID) then
-			delete_image(new.vid);
-			return;
-	 end
+    if (new.source == BADID) then
+        return;
+    end
 
-	 -- just take some number, we want the dimensions, relayout will
-	 -- fix positioning and color settings
-	 new.label = render_text(priocfg.tab_fontstr .. tostring(ind));
-	 if (not valid_vid(new.label)) then
-			delete_image(new.vid);
-			return;
-	 end
+    wnd.tab_slots[ind] = new;
+    wnd.tab_source[new.source] = new;
 
-	 -- position / link as normal
-	 local props = image_storage_properties(new.label);
-	 new.label_w = props.width;
-	 if (props.height > wnd.tab_labelh) then
-			wnd.tab_labelh = props.height;
-	 end
-	 link_image(new.label, new.vid);
-	 image_inherit_order(new.label, true);
-	 image_inherit_order(new.vid, true);
-	 order_image(new.vid, 1);
-	 order_image(new.label, 1);
-	 image_mask_set(new.label, MASK_UNPICKABLE);
-	 link_image(new.vid, wnd.decor.t);
-	 link_image(new.source, new.vid); -- for autodeletion
-	 show_image({new.vid, new.label});
-	 wnd.tabs[new.vid] = new;
-	 wnd.tab_slots[ind] = new;
-	 wnd.tab_source[new.source] = new;
-	 wnd.margin.t = priocfg.border_width + wnd.tab_labelh;
+    if (not wnd.active_tab) then
+        wnd.active_tab = new;
+    else
+        synch_tab_sizes(wnd);
+    end
 
-	 if (not wnd.active_tab) then
-			wnd.active_tab = new;
-	 else
-			synch_tab_sizes(wnd);
-	 end
+    if (opts) then
+        new.force_size = opts.force_size;
+        new.autocrop = opts.autocrop;
+        new.flip_y = opts.flip_y;
+        new.inactive_color = opts.inactive_color;
+        new.active_color = opts.active_color;
+        new.mouse_hidden = opts.mouse_hidden;
+    end
 
-	 -- project shared options
-	 if (opts) then
-			new.force_size = opts.force_size;
-			new.autocrop = opts.autocrop;
-			new.flip_y = opts.flip_y;
-			new.inactive_color = opts.inactive_color;
-			new.active_color = opts.active_color;
-			new.mouse_hidden = opts.mouse_hidden;
-	 end
+    for k,v in ipairs(wnd.event_hooks) do
+        v(wnd, "tab_added", new);
+    end
 
-	 window_decor_resize(wnd, wnd.width, wnd.height);
-	 tab_sel(wnd, new);
-
-	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "tab_added", new);
-	 end
-
-	 return new;
+    return new;
 end
 
 local function window_paste(wnd, msg)

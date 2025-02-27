@@ -47,26 +47,24 @@ local function view_tag(tag_number, wnd)
         end
     end
 
-    -- Show all windows in the target tag, even if they were previously hidden
+    -- Show all windows in the target tag
     for _, tag_wnd in ipairs(target_tag_windows) do
         if (tag_wnd and type(tag_wnd.show) == "function") then
             tag_wnd:show();
         end
     end
 
-    -- Hide all windows not in the target tag, except the focused window
+    -- Hide all windows not in the target tag
     for _, other_wnd in ipairs(prio_windows_linear(false)) do
-        if (other_wnd ~= wnd) then
-            local found = false;
-            for _, tag_wnd in ipairs(target_tag_windows) do
-                if (tag_wnd == other_wnd) then
-                    found = true;
-                    break;
-                end
+        local found = false;
+        for _, tag_wnd in ipairs(target_tag_windows) do
+            if (tag_wnd == other_wnd) then
+                found = true;
+                break;
             end
-            if (not found) then
-                other_wnd:hide();
-            end
+        end
+        if (not found) then
+            other_wnd:hide();
         end
     end
 
@@ -93,20 +91,7 @@ actions.view_tag_2 = wrun(function(wnd)
     view_tag(2, wnd);
 end);
 
-actions.destroy_active_tab = wrun(function(wnd) wnd:lost(wnd.target); end);
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy(); end);
-actions.select_tab_1 = wrun(function(wnd) wnd:set_tab(1); end);
-actions.select_tab_2 = wrun(function(wnd) wnd:set_tab(2); end);
-actions.select_tab_3 = wrun(function(wnd) wnd:set_tab(3); end);
-actions.select_tab_4 = wrun(function(wnd) wnd:set_tab(4); end);
-actions.select_tab_5 = wrun(function(wnd) wnd:set_tab(5); end);
-actions.select_tab_6 = wrun(function(wnd) wnd:set_tab(6); end);
-actions.select_tab_7 = wrun(function(wnd) wnd:set_tab(7); end);
-actions.select_tab_8 = wrun(function(wnd) wnd:set_tab(8); end);
-actions.select_tab_9 = wrun(function(wnd) wnd:set_tab(9); end);
-actions.select_tab_10= wrun(function(wnd) wnd:set_tab(10);end);
-actions.next_tab     = wrun(function(wnd) wnd:set_tab(-2);end);
-actions.prev_tab     = wrun(function(wnd) wnd:set_tab(-1);end);
 actions.paste        = wrun(function(wnd) wnd:paste(CLIPBOARD_MESSAGE);end);
 actions.select_up    = wrun(function(wnd) prio_sel_nearest(wnd, "t"); end);
 actions.select_down  = wrun(function(wnd) prio_sel_nearest(wnd, "b"); end);

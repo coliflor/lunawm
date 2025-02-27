@@ -26,15 +26,6 @@ local function reorder_windows()
 	 end
 end
 
-local function tab_drop_preview(ctx)
-	 if (ctx.preview) then
-			reset_image_transform(ctx.preview);
-			expire_image(ctx.preview, priocfg.animation_speed);
-			blend_image(ctx.preview, 0.0, priocfg.animation_speed);
-			ctx.preview = nil;
-	 end
-end
-
 local function window_decor_resize(wnd, neww, newh)
 	 local bw = priocfg.border_width;
 	 if (not wnd.decor.l) then return; end
@@ -203,18 +194,6 @@ function decor_v_drag(ctx, vid, dx, dy)
 	 end
 end
 
-local function synch_tab_sizes(wnd)
-	 for k,v in pairs(wnd.tabs) do
-			if (valid_vid(v.source, TYPE_FRAMESERVER)) then
-				 local props = image_storage_properties(v.source);
-				 if (v.source ~= wnd.target and (props.width ~= wnd.width or
-																				 props.height ~= wnd.height)) then
-						target_displayhint(v.source, wnd.width, wnd.height);
-				 end
-			end
-	 end
-end
-
 local function decor_drop(ctx)
 	 ctx.state = nil;
 	 if (ctx.wnd.drag_track) then
@@ -223,7 +202,6 @@ local function decor_drop(ctx)
 			end
 			ctx.wnd.drag_track = nil;
 	 end
-	 synch_tab_sizes(ctx.wnd);
 end
 
 function decor_h_drag(ctx, vid, dx, dy)
@@ -321,88 +299,6 @@ local function get_maximize_dir()
 	 end
 end
 
-local function tab_drag(ctx, vid, dx, dy)
-	 -- only used when cursor is at edges
-	 mouse_switch_cursor("drag");
-	 nudge_image(ctx.wnd.anchor, dx, dy);
-end
-
-local function wnd_is_tab(ctx, vid)
-	 return ctx.wnd.tabs[vid] ~= nil;
-end
-
-local function tab_sel(wnd, tab)
-	 if (wnd.dead) then
-			--		print(debug.traceback());
-			return;
-	 end
-
-	 -- send hide event
-	 if (wnd.active_tab and valid_vid(
-					wnd.active_tab.source, TYPE_FRAMESERVER)) then
-			target_displayhint(wnd.active_tab.source, 0, 0, TD_HINT_INVISIBLE);
-	 end
-
-	 wnd.active_tab = tab;
-
-	 -- Copy all the tab properties over to the outer window, this is really
-	 -- poorly done and the window/content,target separation should have been
-	 -- set from the start. Now it's not easy.
-	 wnd.aid = tab.source_audio;
-	 wnd.inertia = tab.inertia;
-	 wnd.autocrop = tab.autocrop;
-	 wnd.force_size = tab.force_size;
-	 wnd.flip_y = tab.flip_y;
-	 wnd.clipboard_in = tab.clipboard_in;
-	 wnd.clipboard_out = tab.clipboard_out;
-	 wnd.mouse_cursor = tab.mouse_cursor;
-	 wnd.mouse_hidden = tab.mouse_hidden;
-
-	 -- send show event
-	 if (valid_vid(tab.source, TYPE_FRAMESERVER)) then
-			wnd.target = tab.source;
-			target_displayhint(wnd.target, 0, 0, 0);
-			image_sharestorage(tab.source, wnd.canvas);
-	 end
-
-	 window_update_tprops(wnd);
-end
-
-local function run_tab(ctx, vid, ind)
-	 local wnd = ctx.wnd;
-	 local tab = wnd.tabs[vid];
-
-	 tab_drop_preview(ctx);
-
-	 if (not wnd:select()) then
-			return;
-	 end
-
-	 if (tab and tab ~= wnd.active_tab) then
-			tab_sel(wnd, tab);
-	 end
-
-	 if (tab.handler) then
-			tab.handler(wnd, tab, ind);
-	 end
-end
-
-local function tab_click(ctx, vid)
-	 run_tab(ctx, vid, MOUSE_LBUTTON);
-end
-
-local function tab_rclick(ctx, vid)
-	 run_tab(ctx, vid, MOUSE_RBUTTON);
-end
-
-local function tab_button(ctx, vid, ind, act)
-	 mouse_switch_cursor(act and "drag" or "grabhint");
-end
-
-local function tab_dblclick(ctx, vid)
-	 ctx.wnd:maximize("f");
-end
-
 local function decor_sel(ctx)
 	 ctx.wnd:select();
 end
@@ -411,56 +307,12 @@ local function decor_reset()
 	 mouse_switch_cursor();
 end
 
-local function tab_hover(ctx, vid, x, y, act)
-	 local tab = ctx.wnd.tabs[vid];
-
-	 if (ctx.preview) then
-			tab_drop_preview(ctx);
-	 end
-
-	 if (not act or ctx.wnd ~= priowin or ctx.wnd.active_tab == tab) then
-			return;
-	 end
-
-	 -- build preview surface and attach to mouse cursor,
-	 -- resize to a readable size, wait then grow to source size
-	 local cvid = mouse_state().cursor;
-	 local props = image_storage_properties(tab.source);
-	 local base = prio_windows_iconsize();
-	 ctx.preview = null_surface(2, 2);
-	 if (not valid_vid(ctx.preview)) then
-			return;
-	 end
-	 image_sharestorage(tab.source, ctx.preview);
-	 show_image(ctx.preview);
-	 image_mask_set(ctx.preview, MASK_UNPICKABLE);
-	 link_image(ctx.preview, cvid);
-	 resize_image(ctx.preview, base, base, priocfg.animation_speed);
-	 resize_image(ctx.preview, base, base, priocfg.animation_speed*2);
-	 resize_image(ctx.preview,
-								props.width, props.height, priocfg.animation_speed*4);
-	 image_inherit_order(ctx.preview, true);
-	 props = image_surface_resolve(cvid);
-	 move_image(ctx.preview, props.width, props.height);
-	 order_image(ctx.preview, 1);
-end
-
-local function tab_over(ctx, vid)
-	 mouse_switch_cursor("grabhint");
-	 tab_drop_preview(ctx);
-end
-
-local function tab_out(ctx, vid)
-	 mouse_switch_cursor();
-	 tab_drop_preview(ctx);
-end
-
 -- build the decorations: tttt
 --                        l  r
 --                        bbbb and anchor for easier resize
 local function build_decorations(wnd, opts)
 	 local bw = priocfg.border_width;
-	 for k,v in ipairs(dirtbl) do
+	 for k, v in ipairs(dirtbl) do
 			wnd.decor[v] = color_surface(1, 1, 0, 0, 0);
 			image_inherit_order(wnd.decor[v], true);
 			blend_image(wnd.decor[v], priocfg.border_alpha);
@@ -473,43 +325,35 @@ local function build_decorations(wnd, opts)
 	 link_image(wnd.decor.t, wnd.anchor);
 
 	 if (not opts.no_mouse) then
-			wnd.decor_mh.r = { wnd = wnd, name = "decor_r", own = wnd.decor.r,
-												 ul_near = false, motion = decor_v_over, drag = decor_v_drag,
-												 click = decor_sel, rclick = prio_menu, drop = decor_drop,
-												 out = decor_reset
+			wnd.decor_mh.r = {
+				 wnd = wnd, name = "decor_r", own = wnd.decor.r,
+				 ul_near = false, motion = decor_v_over, drag = decor_v_drag,
+				 click = decor_sel, rclick = prio_menu, drop = decor_drop,
+				 out = decor_reset
 			};
-			wnd.decor_mh.t = { wnd = wnd, name = "decor_t", own = wnd.decor.t,
-												 ul_near = true, motion = decor_h_over, drag = decor_h_drag,
-												 click = decor_sel, rclick = prio_menu, out = decor_reset,
-												 out = decor_reset, drop = decor_drop
+			wnd.decor_mh.t = {
+				 wnd = wnd, name = "decor_t", own = wnd.decor.t,
+				 ul_near = true, motion = decor_h_over, drag = decor_h_drag,
+				 click = decor_sel, rclick = prio_menu, out = decor_reset,
+				 drop = decor_drop
 			};
-			wnd.decor_mh.l = { wnd = wnd, name = "decor_l", own = wnd.decor.l,
-												 ul_near = true, motion = decor_v_over, drag = decor_v_drag,
-												 click = decor_sel, rclick = prio_menu, out = decor_reset,
-												 out = decor_reset, drop = decor_drop
+			wnd.decor_mh.l = {
+				 wnd = wnd, name = "decor_l", own = wnd.decor.l,
+				 ul_near = true, motion = decor_v_over, drag = decor_v_drag,
+				 click = decor_sel, rclick = prio_menu, out = decor_reset,
+				 drop = decor_drop
 			};
-			wnd.decor_mh.b = { wnd = wnd, name = "decor_b", own = wnd.decor.b,
-												 ul_near = false, motion = decor_h_over, drag = decor_h_drag,
-												 click = decor_sel, rclick = prio_menu, drop = decor_drop,
-												 out = decor_reset
+			wnd.decor_mh.b = {
+				 wnd = wnd, name = "decor_b", own = wnd.decor.b,
+				 ul_near = false, motion = decor_h_over, drag = decor_h_drag,
+				 click = decor_sel, rclick = prio_menu, drop = decor_drop,
+				 out = decor_reset
 			};
 
-			for k,v in ipairs(dirtbl) do
-				 mouse_addlistener(wnd.decor_mh[v], {"drag",
-																						 "click", "rclick", "drop", "motion", "out"});
-			end
-
-			if (not wnd.tab_block) then
-				 wnd.tabs_mh = {
-						wnd = wnd, name = "wnd_tabs", own = wnd_is_tab,
-						drag = tab_drag,
-						click = tab_click, rclick = tab_rclick, button = tab_button,
-						over = tab_over, out = tab_out, hover = tab_hover,
-						dblclick = tab_dblclick
-				 };
-				 mouse_addlistener(wnd.tabs_mh,
-													 {"drag", "drop", "over", "out", "hover",
-														"button", "click", "rclick", "dblclick"});
+			for k, v in ipairs(dirtbl) do
+				 mouse_addlistener(wnd.decor_mh[v], {
+															"drag", "click", "rclick", "drop", "motion", "out"
+				 });
 			end
 	 end
 
@@ -672,21 +516,10 @@ function prio_menu_spawn(list, x, y, ctx)
 	 local fullw = w + 2 * bw;
 	 local fullh = h + 2 * bw;
 
-	 if (x + w >= VRESW) then
-			x = VRESW - w;
-	 end
-
-	 if (x < 0) then
-			x = 0;
-	 end
-
-	 if (y + h >= VRESH) then
-			y = VRESH - h;
-	 end
-
-	 if (y < 0) then
-			y = 0;
-	 end
+	 if (x + w >= VRESW) then	x = VRESW - w; end
+	 if (x < 0) then	x = 0; end
+	 if (y + h >= VRESH) then	y = VRESH - h; end
+	 if (y < 0) then y = 0; end
 
 	 -- reuse the window drawing code but disable resizing and tabs
 	 local wnd = prio_new_window(csurf, BADID, {
@@ -778,42 +611,7 @@ local function window_deselect(wnd)
 end
 
 local function window_lost(wnd, source)
-	 -- last tab, drop windows
-	 if (#wnd.tab_slots <= 1) then
-			wnd:destroy();
-			return;
-	 end
-
-	 dst = wnd.tab_source[source];
-	 assert(dst);
-
-	 -- clean up resources
-	 wnd.tabs[dst.vid] = nil;
-	 wnd.tab_source[source] = nil;
-	 table.remove(wnd.tab_slots, dst.ind);
-	 delete_image(dst.vid);
-
-	 -- reindex, update decorations and labels
-	 for i=1,#wnd.tab_slots do
-			wnd.tab_slots[i].ind = i;
-	 end
-
-	 -- pick a new active tab if we have to
-	 if (not wnd.active_tab == dst) then
-			return;
-	 end
-
-	 local ind = dst.ind;
-	 for i=1,10 do
-			ind = ind + 1;
-			if (ind > 10) then
-				 ind = 1;
-			end
-			if (wnd.tab_slots[ind] ~= nil) then
-				 tab_sel(wnd, wnd.tab_slots[ind]);
-				 return;
-			end
-	 end
+	 wnd:destroy();
 end
 
 local function window_hide(wnd)
@@ -884,16 +682,14 @@ local function window_destroy(wnd)
 	 for k,v in pairs(wnd.decor_mh) do
 			mouse_droplistener(v);
 	 end
-	 if (wnd.tabs_mh) then
-			mouse_droplistener(wnd.tabs_mh);
-	 end
 	 mouse_droplistener(wnd);
 
 	 for k,v in ipairs(wnd.event_hooks) do
 			v(wnd, "destroy");
 	 end
 
-	 -- anchor will just cascade delete everything like tabs etc.
+	 -- anchor will just cascade delete everything.
+	 print("Deleting window anchor:", wnd.anchor) -- Debug
 	 delete_image(wnd.anchor);
 
 	 -- but reset the table to identify any dangling refs.
@@ -1067,59 +863,17 @@ local function window_mouseout(ctx)
 	 end
 end
 
-local function def_tabh(wnd, tab, btn)
-	 assert(valid_vid(tab.source));
-	 if (btn == MOUSE_RBUTTON) then
-			tab_menu(wnd, tab);
-	 end
-end
-
-local function window_tab_set(wnd, ind)
-	 if (wnd.tab_block) then
-			return;
-	 end
-
-	 -- special case, relative
-	 if (ind == -1 or ind == -2) then
-			local step = ind == -2 and 1 or -1;
-			local dind = wnd.active_tab.ind;
-			for i=1,10 do
-				 dind = dind + step;
-				 dind = dind < 0 and 10 or (dind > 10 and 1 or dind);
-				 if (wnd.tab_slots[dind]) then
-						tab_sel(wnd, wnd.tab_slots[dind]);
-						return;
-				 end
-			end
-	 else
-			-- specific index
-			if (wnd.tab_slots[ind]) then
-				 tab_sel(wnd, wnd.tab_slots[ind]);
-			end
-	 end
-end
-
 --
 -- Return an iterator for iterating windows, windows-with-external
--- connection and/or window+tabs
+-- connection
 --
-function prio_iter_windows(external, with_tabs)
+function prio_iter_windows(external)
 	 local ctx = {};
 
 	 for k,v in pairs(priowindows) do
 			if (not external or valid_vid(v.target, TYPE_FRAMESERVER)) then
 				 table.insert(ctx, k, v);
 			end
-
-			if (with_tabs) then
-				 for i=1,10 do
-						if (v.tab_slots[i] ~= nil and (not external or
-																					 valid_vid(v.tab_slots[i].source, TYPE_FRAMESERVER))) then
-							 table.insert(ctx, v.tab_slots[i].source);
-						end
-				 end
-			end
-
 	 end
 
 	 local i = 0;
@@ -1130,56 +884,6 @@ function prio_iter_windows(external, with_tabs)
 	 end
 end
 
-local function window_tab_add(wnd, source, callback, opts)
-	 local ind = 0;
-	 if (wnd.tab_block) then
-			return;
-	 end
-
-	 for i=1,10 do
-			if (wnd.tab_slots[i] == nil) then
-				 ind = i;
-				 break;
-			end
-	 end
-	 if (ind == 0) then
-			return;
-	 end
-
-	 local new = {
-			ind = ind,
-			source = valid_vid(source) and source or null_surface(1, 1),
-			handler = callback and callback or def_tabh,
-	 };
-
-	 if (new.source == BADID) then
-			return;
-	 end
-
-	 wnd.tab_slots[ind] = new;
-	 wnd.tab_source[new.source] = new;
-
-	 if (not wnd.active_tab) then
-			wnd.active_tab = new;
-	 else
-			synch_tab_sizes(wnd);
-	 end
-
-	 if (opts) then
-			new.force_size = opts.force_size;
-			new.autocrop = opts.autocrop;
-			new.flip_y = opts.flip_y;
-			new.inactive_color = opts.inactive_color;
-			new.active_color = opts.active_color;
-			new.mouse_hidden = opts.mouse_hidden;
-	 end
-
-	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "tab_added", new);
-	 end
-
-	 return new;
-end
 
 local function window_paste(wnd, msg)
 	 if (not wnd.clipboard_out) then
@@ -1221,35 +925,35 @@ function arrange()
 	 local stack_area_w = VRESW - master_area_w
 	 local stack_area_h = VRESH
 
-	 local border_width = priocfg.border_width or 0 -- Get border width from config or default to 0
+	 local gap = priocfg.window_gap or 5
 
-	 if n == 1 then -- Only one window
-			local client = tag[1]
-			client.x = border_width
-			client.y = border_width
-			client.w = VRESW - 2 * border_width -- Adjust for borders
-			client.h = VRESH - 2 * border_width -- Adjust for borders
-			set_window_geometry(client)
+	 if n == 1 then
+			local wnd = tag[1] --Get window object
+			if wnd.margin == nil then return end -- WTF
+			local pad_w = wnd.margin.l + wnd.margin.r;
+			local pad_h = wnd.margin.t + wnd.margin.b;
+			wnd:move(wnd.margin.l + gap/2, wnd.margin.t + gap/2);
+			wnd:resize(VRESW - pad_w - gap, VRESH - pad_h - gap);
 			return
 	 end
 
 	 -- Master window (n > 1)
-	 local master = tag[1]
-	 master.x = border_width
-	 master.y = border_width
-	 master.w = master_area_w - 2 * border_width -- Adjust for borders
-	 master.h = master_area_h - 2 * border_width -- Adjust for borders
-	 set_window_geometry(master)
+	 local master = tag[1] --Get window object
+	 if master.margin == nil then return end -- WTF
+	 local pad_w = master.margin.l + master.margin.r;
+	 local pad_h = master.margin.t + master.margin.b;
+	 master:move(master.margin.l + gap/2, master.margin.t + gap/2);
+	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap);
 
 	 -- Stack windows (n > 1)
-	 local stack_h = stack_area_h / (n - 1)
+	 local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
 	 for i = 2, n do
-			local client = tag[i]
-			client.x = stack_area_x + border_width -- Adjust for borders
-			client.y = (i - 2) * stack_h + border_width -- Adjust for borders
-			client.w = stack_area_w - 2 * border_width -- Adjust for borders
-			client.h = stack_h - 2 * border_width -- Adjust for borders
-			set_window_geometry(client)
+			local wnd = tag[i] --Get window object
+			if wnd.margin == nil then return end -- WTF
+			local pad_w = wnd.margin.l + wnd.margin.r;
+			local pad_h = wnd.margin.t + wnd.margin.b;
+			wnd:move(stack_area_x + wnd.margin.l + gap/2, (i - 2) * stack_h + wnd.margin.t + gap/2 + (i - 2) * gap);
+			wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap);
 	 end
 end
 
@@ -1289,10 +993,6 @@ local function remove_client(window_id)
 	 arrange()
 end
 
-local function focus_client(window_id)
-	 -- Implement focus highlighting if needed
-end
-
 function prio_new_window(vid, aid, opts)
 	 assert(opts and opts.x and opts.y and opts.w and opts.h);
 
@@ -1319,7 +1019,7 @@ function prio_new_window(vid, aid, opts)
 			anchor = anchor,
 			canvas = vid,
 			aid = aid,
-			min_w = 32, -- controlled by the amount of tabs
+			min_w = 32,
 			min_h = 32,
 			width = opts.w,
 			height = opts.h,
@@ -1332,18 +1032,12 @@ function prio_new_window(vid, aid, opts)
 			decor_mh = {},
 			margin = {t = 0, l = 0, r = 0, b = 0},
 
-			-- tab management
-			tabs = {},
-			tab_source = {},
-			tab_slots = {},
-			tab_labelh = 0,
-
 			-- input controls
 			mscale = {},
 			own = vid,
 			mouse_btns = {},
 
-			-- table methods, normal window maipulation
+			-- window maipulation
 			resize = window_resize,
 			move = window_move,
 			select = window_select,
@@ -1353,8 +1047,6 @@ function prio_new_window(vid, aid, opts)
 			show = window_show,
 			lost = window_lost,
 			border_color = window_bordercolor,
-			add_tab = window_tab_add,
-			set_tab = window_tab_set,
 			step_move = window_step_move,
 			step_sz = window_step_sz,
 			motion = window_mousemotion,
@@ -1362,7 +1054,6 @@ function prio_new_window(vid, aid, opts)
 			over = window_mouseover,
 			out = window_mouseout,
 			maximize = window_maximize,
-			synch_tab_sizes = synch_tab_sizes,
 			update_tprops = window_update_tprops,
 			paste = window_paste,
 			display_changed = window_dispchg,
@@ -1406,5 +1097,5 @@ function prio_new_window(vid, aid, opts)
 
 	 -- index by supplied vid for event handlers
 	 priowindows[vid] = wnd;
-	 return wnd, wnd:add_tab(vid, nil, opts);
+	 return wnd
 end

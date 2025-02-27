@@ -3,7 +3,6 @@
 --
 -- For stateful keybindings, like C-W, C-G:
 -- [M1 .. "W"] = "set_temp_prefix_1"
--- ["t1_" .. M1 .. "G"] = "destroy_active_tab"
 --
 -- For triggering on release, add the suffix _f"
 --
@@ -17,22 +16,6 @@ local M1 = "ralt_";
 local M2 = "lalt_";
 local M3 = "lalt_lctrl_";
 return {
-	 -- window controls
-	 ["w"] = "destroy_active_tab",
-	 [M3 .. "1"] = "select_tab_1",
-	 [M3 .. "2"] = "select_tab_2",
-	 [M3 .. "3"] = "select_tab_3",
-	 [M3 .. "4"] = "select_tab_4",
-	 [M3 .. "5"] = "select_tab_5",
-	 [M3 .. "6"] = "select_tab_6",
-	 [M3 .. "7"] = "select_tab_7",
-	 [M3 .. "8"] = "select_tab_8",
-	 [M3 .. "9"] = "select_tab_9",
-	 [M3 .. "0"] = "select_tab_10",
-	 [M1 .. "h"] = "next_tab",
-	 [M1 .. "l"] = "prev_tab",
-	 [M1 .. "v"] = "clipboard_paste",
-
 	 -- window positioning / sizing controls
 	 [M2 ..    "j"] = "select_up",
 	 [M2 ..    "k"] = "select_down",
@@ -56,6 +39,7 @@ return {
 	 ["m"] = "test",
 	 ["ESCAPE"] = "shutdown",
 	 ["TAB"] = "reset",
+	 [M1 .. "v"] = "clipboard_paste",
 
 	 -- Example keybindings
 	 ["1"] = "view_tag_1",  -- Switch to tag 1

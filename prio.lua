@@ -194,19 +194,17 @@ function prio_update_density(vppcm)
 	 priocfg = system_load("config.lua")();
 	 local factor = vppcm / 28.3687;
 	 for k,v in ipairs({
-				 "menu_fontsz", "border_width", "tab_spacing", "tab_fontsz"
+				 "menu_fontsz", "border_width"
 	 }) do
 			priocfg[v] = math.ceil(priocfg[v] * factor);
 	 end
 
 	 priocfg.menu_fontstr = string.format("%s%d ",
 																				priocfg.menu_fontstr, priocfg.menu_fontsz);
-	 priocfg.tab_fontstr = string.format("%s%d ",
-																			 priocfg.tab_fontstr, priocfg.tab_fontsz);
 
 	 -- send to all windows that the density has potentially changed
 	 if (prio_iter_windows) then
-			for v in prio_iter_windows(false, true) do
+			for v in prio_iter_windows(false) do
 				 target_displayhint(v, 0, 0, TD_HINT_IGNORE, {ppcm = vppcm});
 			end
 	 end

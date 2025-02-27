@@ -47,14 +47,11 @@ return {
 	 force_size = true,
 
 	 -- window visuals
+	 window_gap = 10;
 	 border_width = 10,
 	 border_alpha = 0.8,
 	 active_color = {164, 164, 192},
 	 inactive_color = {92, 92, 128},
-
-	 -- default tab colors
-	 tab_active = {255, 211, 0},
-	 tab_inactive = {179, 148, 0},
 
 	 -- type specific colors
 	 tab_colors = {
@@ -67,10 +64,4 @@ return {
 			["tui"] = {0x60, 0xe6, 0xbe},
 			["remoting"] = {0xff, 0x6e, 0x6b}
 	 },
-
-	 tab_fontsz = 14,
-	 tab_fontstr = [[\#ffffff\ffonts/default.ttf,]],
-	 tab_inactive_alpha = 1.0,
-	 tab_inactive_fontalpha = 0.5,
-	 tab_spacing = 5
 };

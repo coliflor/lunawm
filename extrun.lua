@@ -1,20 +1,17 @@
 local defevhs = {};
 
-local function cursor_handler(wnd, tab, source, status)
-	 if (status.kind == "terminated") then
-			delete_image(source);
-			if (tab == wnd.active_tab) then
-				 wnd.mouse_cursor = nil;
-				 local mx, my = mouse_xy();
-				 if (image_hit(wnd.canvas, mx, my)) then
-						wnd:over();
-				 end
-			end
-			tab.mouse_cursor = nil;
-	 end
+local function cursor_handler(wnd, source, status)
+    if (status.kind == "terminated") then
+        delete_image(source);
+        wnd.mouse_cursor = nil;
+        local mx, my = mouse_xy();
+        if (image_hit(wnd.canvas, mx, my)) then
+            wnd:over();
+        end
+    end
 end
 
-local function clipboard_handler(wnd, tab, source, status)
+local function clipboard_handler(wnd, source, status)
 	 if (status.kind == "message") then
 			if (not wnd.multipart) then
 				 wnd.multipart = {};
@@ -31,13 +28,8 @@ local function clipboard_handler(wnd, tab, source, status)
 end
 
 defevhs["resized"] =
-	 function(wnd, tab, source, status)
+	 function(wnd, source, status)
 			wnd.flip_y = status.origo_ll;
-
-			if (tab) then
-				 tab.flip_y = status.origo_ll;
-				 tab.source_audio = source_audio;
-			end
 
 			if (wnd.target == source) then
 				 wnd.aid = source_audio;
@@ -46,25 +38,24 @@ defevhs["resized"] =
 				 else
 						wnd:resize(status.width, status.height, true);
 				 end
-				 wnd:synch_tab_sizes();
 				 wnd:update_tprops();
 			end
 	 end
 
 defevhs["terminated"] =
-	 function(wnd, tab, source, status)
+	 function(wnd, source, status)
 			wnd:lost(source);
 	 end
 
 defevhs["segment_request"] =
-	 function(wnd, tab, source, stat)
+	 function(wnd, source, stat)
 			if (stat.segkind == "clipboard" and tab) then
 				 if (valid_vid(tab.clipboard_in)) then
 						delete_image(tab.clipboard_in);
 				 end
 				 tab.clipboard_in = accept_target(
 						function(src, stat)
-							 clipboard_handler(wnd, tab, src, stat);
+							 clipboard_handler(wnd, src, stat);
 				 end);
 				 link_image(tab.clipboard_in, wnd.anchor);
 
@@ -73,7 +64,7 @@ defevhs["segment_request"] =
 			elseif (stat.segkind == "cursor") then
 				 local new = accept_target(
 						function(src, stat)
-							 cursor_handler(wnd, tab, src, stat);
+							 cursor_handler(wnd, src, stat);
 						end
 				 );
 				 if (valid_vid(new)) then
@@ -95,7 +86,7 @@ defevhs["segment_request"] =
 function prio_group_handler(source, status)
 	 local wnd = priowindows[source];
 	 if (wnd and defevhs[status.kind]) then
-			defevhs[status.kind](wnd, wnd.tab_source[source], source, status);
+			defevhs[status.kind](wnd, source, status);
 	 end
 end
 
@@ -197,24 +188,6 @@ local function wnd_type_options(segkind, orig_opts)
 	 return orig_opts;
 end
 
---
--- Some explanation:
--- When a terminal is created, we also generate a connection point
--- in order to be able to route new connections to tabs of the same
--- window as the terminal.
---
--- During the preroll- phase, we send the intended dimensions,
--- display properties and font data and then switch to the normal
--- event handler that is shared.
---
--- When a connection arrives, we re-open the same connection key
--- then wait for the connection to register and pick an event handler
--- to match.
---
--- The client is redirected to a limbo- handler that still tracks it
--- (with an optional timeout) until the first frame is delivered, then
--- the tab resource is created and the real event handler is activated
---
 local pending = {};
 local whitelist = {
 	 "lightweight arcan", "multimedia",

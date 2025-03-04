@@ -1,5 +1,4 @@
 return {
-
 	 num_tags = 2; -- Number of workspaces/tags
 	 master_ratio = 0.6; -- Ratio of master window size
 
@@ -10,7 +9,7 @@ return {
 	 repeat_delay = 300, -- delay before feature is enabled
 
 	 -- mouse control
-	 mouse_grab = true,
+	 mouse_grab = false,
 	 mouse_cursor_scale = 1.0,
 	 mouse_input_scale_x = 1.0,
 	 mouse_input_scale_y = 1.0,
@@ -52,16 +51,4 @@ return {
 	 border_alpha = 0.8,
 	 active_color = {164, 164, 192},
 	 inactive_color = {92, 92, 128},
-
-	 -- type specific colors
-	 tab_colors = {
-			["bridge-x11"] = {0xff, 0xc5, 0x6a},
-			["bridge-wayland"] = {0x60, 0xe6, 0xc1},
-			["application"] = {0x80, 0x73, 0xe9},
-			["game"] = {0xff, 0xa0, 0x6a},
-			["multimedia"] = {0x63, 0xec, 0x8c},
-			["lightweight arcan"] = {0xf3, 0x66, 0xa6},
-			["tui"] = {0x60, 0xe6, 0xbe},
-			["remoting"] = {0xff, 0x6e, 0x6b}
-	 },
 };

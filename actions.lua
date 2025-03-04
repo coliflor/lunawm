@@ -9,25 +9,12 @@ local function wrun(fun)
 	 end
 end
 
-actions.test = function()
+actions.terminal = function()
 	 local tag = tags and tags[current_tag] or {} -- Get the current tag's windows
 	 local n = #tag -- Number of windows on the current tag
-
-	 local w, h -- Initialize width and height
-
-	 if n == 0 then -- No windows yet, take full screen
-			w = VRESW
-			h = VRESH
-	 elseif n == 1 then -- One window (master), take master area
-			w = VRESW * priocfg.master_ratio
-			h = VRESH
-	 else -- More than one window, calculate stack area
-			w = VRESW * (1 - priocfg.master_ratio) -- Stack area width
-			h = VRESH / (n) -- Stack area height (adjust as needed for your layout)
-	 end
-
-	 create_terminal(0, 0, w, h)
+	 create_terminal(0, 0, 0, 0)
 end
+
 actions.shutdown = function()
 	 shutdown();
 end
@@ -37,58 +24,58 @@ actions.reset = function()
 end
 
 local function view_tag(tag_number, wnd)
-    current_tag = tag_number;
+	 current_tag = tag_number;
 
-    -- Create a snapshot of the target tag's windows
-    local target_tag_windows = {};
-    if (tags[tag_number]) then
-        for _, tag_wnd in ipairs(tags[tag_number]) do
-            table.insert(target_tag_windows, tag_wnd);
-        end
-    end
+	 -- Create a snapshot of the target tag's windows
+	 local target_tag_windows = {};
+	 if (tags[tag_number]) then
+			for _, tag_wnd in ipairs(tags[tag_number]) do
+				 table.insert(target_tag_windows, tag_wnd);
+			end
+	 end
 
-    -- Show all windows in the target tag
-    for _, tag_wnd in ipairs(target_tag_windows) do
-        if (tag_wnd and type(tag_wnd.show) == "function") then
-            tag_wnd:show();
-        end
-    end
+	 -- Show all windows in the target tag
+	 for _, tag_wnd in ipairs(target_tag_windows) do
+			if (tag_wnd and type(tag_wnd.show) == "function") then
+				 tag_wnd:show();
+			end
+	 end
 
-    -- Hide all windows not in the target tag
-    for _, other_wnd in ipairs(prio_windows_linear(false)) do
-        local found = false;
-        for _, tag_wnd in ipairs(target_tag_windows) do
-            if (tag_wnd == other_wnd) then
-                found = true;
-                break;
-            end
-        end
-        if (not found) then
-            other_wnd:hide();
-        end
-    end
+	 -- Hide all windows not in the target tag
+	 for _, other_wnd in ipairs(prio_windows_linear(false)) do
+			local found = false;
+			for _, tag_wnd in ipairs(target_tag_windows) do
+				 if (tag_wnd == other_wnd) then
+						found = true;
+						break;
+				 end
+			end
+			if (not found) then
+				 other_wnd:hide();
+			end
+	 end
 
-    -- Debug: Print the windows in the current tag
-    print("Tag " .. tag_number .. " windows:");
-    if (tags[tag_number]) then
-        for _, tag_wnd in ipairs(tags[tag_number]) do
-            if (tag_wnd and tag_wnd.id) then
-                print("  Window ID: " .. tag_wnd.id);
-            else
-                print("  Window (no ID or invalid)");
-            end
-        end
-    else
-        print("  (No windows in this tag)");
-    end
+	 -- Debug: Print the windows in the current tag
+	 print("Tag " .. tag_number .. " windows:");
+	 if (tags[tag_number]) then
+			for _, tag_wnd in ipairs(tags[tag_number]) do
+				 if (tag_wnd and tag_wnd.id) then
+						print("  Window ID: " .. tag_wnd.id);
+				 else
+						print("  Window (no ID or invalid)");
+				 end
+			end
+	 else
+			print("  (No windows in this tag)");
+	 end
 end
 
 actions.view_tag_1 = wrun(function(wnd)
-    view_tag(1, wnd);
+			view_tag(1, wnd);
 end);
 
 actions.view_tag_2 = wrun(function(wnd)
-    view_tag(2, wnd);
+			view_tag(2, wnd);
 end);
 
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy(); end);
@@ -125,5 +112,136 @@ end);
 actions.paste = wrun(function(wnd)
 			wnd:paste(CLIPBOARD_MESSAGE);
 end);
+
+-- Layout cycling
+local layout_modes = {"monocle", "grid", "master_stack", "middle_stack"};
+local current_layout_index = 1;
+
+actions.cycle_layout = function()
+    current_layout_index = (current_layout_index % #layout_modes) + 1;
+    local next_layout = layout_modes[current_layout_index];
+    set_layout_mode(next_layout);
+    print("Layout changed to: " .. next_layout);
+end
+
+-- Function to rotate through the window stack (positive direction) within the current tag
+actions.rotate_window_stack = function()
+    local current_tag_windows = tags[current_tag];
+
+    if not current_tag_windows or #current_tag_windows <= 1 then
+        return; -- No windows in the current tag or only one window
+    end
+
+    local current_index = nil;
+    for i, wnd in ipairs(current_tag_windows) do
+        if (wnd == priowin) then
+            current_index = i;
+            break;
+        end
+    end
+
+    if (current_index == nil) then
+        return; -- Current window not found in the current tag
+    end
+
+    local next_index = (current_index % #current_tag_windows) + 1;
+    local next_window = current_tag_windows[next_index];
+
+    if (next_window) then
+        window_select(next_window);
+    end
+end
+
+-- Function to rotate through the window stack (negative direction) within the current tag
+actions.rotate_window_stack_negative = function()
+    local current_tag_windows = tags[current_tag];
+
+    if not current_tag_windows or #current_tag_windows <= 1 then
+        return; -- No windows in the current tag or only one window
+    end
+
+    local current_index = nil;
+    for i, wnd in ipairs(current_tag_windows) do
+        if (wnd == priowin) then
+            current_index = i;
+            break;
+        end
+    end
+
+    if (current_index == nil) then
+        return; -- Current window not found in the current tag
+    end
+
+    local prev_index = current_index - 1;
+    if (prev_index < 1) then
+        prev_index = #current_tag_windows;
+    end
+
+    local prev_window = current_tag_windows[prev_index];
+
+    if (prev_window) then
+        window_select(prev_window);
+    end
+end
+
+local previous_selected_window = nil -- Global variable to store the previously selected window
+
+actions.swap_master = function()
+    local tag = tags and tags[current_tag] or {}
+    local n = #tag
+
+    if n <= 1 then
+        return -- Nothing to swap if there are 0 or 1 windows
+    end
+
+    if not priowin then
+        return -- No window selected
+    end
+
+    local master = tag[1]
+    if master == priowin then
+        -- If the master is selected, swap with the previously selected window
+        if previous_selected_window and previous_selected_window ~= master then
+            local previous_selected_index = nil
+            for i, wnd in ipairs(tag) do
+                if wnd == previous_selected_window then
+                    previous_selected_index = i
+                    break
+                end
+            end
+            if previous_selected_index then
+                tag[1], tag[previous_selected_index] = tag[previous_selected_index], tag[1]
+                arrange()
+            end
+        end
+        return -- Exit after swapping
+    end
+
+    local master_index = 1
+    local selected_index = nil
+
+    for i, wnd in ipairs(tag) do
+        if wnd == priowin then
+            selected_index = i
+            break
+        end
+    end
+
+    if selected_index == nil then
+        return -- Selected window not found in the tag
+    end
+
+    -- Update the previous selected window before swapping
+    previous_selected_window = master;
+
+    -- Swap the windows in the tag table
+    tag[master_index], tag[selected_index] = tag[selected_index], tag[master_index]
+
+    -- Re-arrange the windows
+    arrange()
+end
+
+
+actions["terminal"] = actions.terminal
 
 return actions;

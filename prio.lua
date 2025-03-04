@@ -1,36 +1,27 @@
---
--- A Quick/Dirty RIO (Plan9) like desktop
---
--- globals:
--- priocfg  : loaded config.lua table
--- priobg   : background / global event catcher
--- priowindows : all available windows
--- priohidden :
--- priostate : (def: nil), hook for menu->delete + mouse pick
--- prioactions : table of macro- like functions to bind to keys
--- priobindings : list of active keybindings (str -> field in prioactions)
---
 priowindows = {};
 priohidden = {};
+prioactions = {};
+priovariables = {};
 CLIPBOARD_MESSAGE = "";
 
 -- New: Tiling-specific data
-clients = {}; -- Table to hold managed client windows
 current_tag = 1; -- Currently active tag
 tags = {};  -- Table to manage tags (workspaces)
-
--- Window structure (add to each entry in 'clients')
--- { window_id = ..., x = ..., y = ..., w = ..., h = ..., tags = {1, 2, ...}, floating = false, ... }
+connection_point = "prio"
+layout_mode = "master_stack" -- Default layout mode
+wndlist = {};
 
 function prio()
 
 	 priosym = system_load("builtin/keyboard.lua")(); -- keyboard translation
 	 priocfg = system_load("config.lua")();
+	 priovariables =  system_load("variables.lua")();
 	 system_load("builtin/mouse.lua")(); -- mouse gesture abstraction etc.
+	 system_load("timer.lua")();
 	 system_load("window.lua")(); -- window creation
-	 system_load("menu.lua")(); -- global menus
 	 system_load("extrun.lua")(); -- helper functions for window spawn
 	 prioactions = system_load("actions.lua")(); -- bindable actions
+	 system_load("ipc.lua")();
 	 priobindings = system_load("keybindings.lua")(); -- keysym+mods -> actions
 
 	 priocfg.master_ratio = priocfg.master_ratio or 0.6 -- Default master ratio
@@ -41,7 +32,7 @@ function prio()
 	 end
 
 	 function create_terminal(x, y, w, h) -- Wrapper function
-			prio_terminal(x, y, w, h, clients, arrange)
+			prio_terminal(x, y, w, h, arrange)
 	 end
 
 	 -- mipmap is build-time default off, vfilter is bilinear
@@ -55,20 +46,20 @@ function prio()
 	 kbd_repeat(priocfg.repeat_period, priocfg.repeat_delay);
 
 	 -- we'll always "overdraw" when updating due to the background image
-	 rendertarget_noclear(WORLDID, true);
-	 priobg = fill_surface(VRESW, VRESH, 64, 64, 64);
-	 show_image(priobg);
+	 --rendertarget_noclear(WORLDID, true);
+	 --priobg = fill_surface(VRESW, VRESH, 64, 64, 64);
+	 --show_image(priobg);
 
 	 -- asynch- load background and overwrite existing if found
-	 if (priocfg.background and resource(priocfg.background)) then
-			load_image_asynch(priocfg.background,
-												function(source, status)
-													 if (status.kind == "loaded") then
-															image_sharestorage(source, priobg);
-													 end
-													 delete_image(source);
-			end);
-	 end
+	 -- if (priocfg.background and resource(priocfg.background)) then
+	 -- 		load_image_asynch(priocfg.background,
+	 -- 											function(source, status)
+	 -- 												 if (status.kind == "loaded") then
+	 -- 														image_sharestorage(source, priobg);
+	 -- 												 end
+	 -- 												 delete_image(source);
+	 -- 		end);
+	 -- end
 
 	 local add_cursor = function(name, hx, hy)
 			mouse_add_cursor(name, load_image("cursor/" ..name ..".png"), hx, hy, {});
@@ -106,15 +97,10 @@ function prio()
 			toggle_mouse_grab(MOUSE_GRABON);
 	 end
 
-	 mouse_addlistener({
-				 name = "background",
-				 own = priobg,
-				 click = cancel_menu,
-				 rclick = prio_menu,
-										 }, {"click", "rclick"});
-
 	 -- rebuild config now that we have access to everything
 	 prio_update_density(VPPCM);
+
+	target_alloc(connection_point, client_event_handler)
 end
 
 function system_message(str)
@@ -224,7 +210,7 @@ function VRES_AUTORES(w, h, vppcm, flags, source)
 
 	 -- will update the VRESW/VRESH globals
 	 resize_video_canvas(w, h);
-	 resize_image(priobg, w, h);
+	 --resize_image(priobg, w, h);
 
 	 -- reposition all windows to have the same relative spot,
 	 -- and invalidate to relayout

@@ -1,14 +1,14 @@
 local defevhs = {};
 
 local function cursor_handler(wnd, source, status)
-    if (status.kind == "terminated") then
-        delete_image(source);
-        wnd.mouse_cursor = nil;
-        local mx, my = mouse_xy();
-        if (image_hit(wnd.canvas, mx, my)) then
-            wnd:over();
-        end
-    end
+	 if (status.kind == "terminated") then
+			delete_image(source);
+			wnd.mouse_cursor = nil;
+			local mx, my = mouse_xy();
+			if (image_hit(wnd.canvas, mx, my)) then
+				 wnd:over();
+			end
+	 end
 end
 
 local function clipboard_handler(wnd, source, status)
@@ -90,29 +90,6 @@ function prio_group_handler(source, status)
 	 end
 end
 
--- allow static images at specific positions
-function prio_static_image(resource, x, y, w, h, opts)
-	 opts = opts and opts or {};
-
-	 load_image_asynch(resource, function(hnd, status)
-												if (status.kind == "loaded") then
-													 force_image_blend(hnd, BLEND_FORCE);
-													 order_image(hnd, opts.order and opts.order or 2);
-													 blend_image(hnd, 1.0, priocfg.animation_speed);
-													 if (w and h and w > 0 and h > 0) then
-															resize_image(hnd, w, h);
-													 else
-															resize_image(hnd, status.width, status.height);
-													 end
-													 move_image(hnd, x, y);
-
-												else
-													 delete_image(hnd);
-													 warning("could not load " .. tostring(resource and resource or ""));
-												end
-	 end);
-end
-
 local function send_type_data(source, segkind)
 	 local dstfont_sz = priocfg.default_font_sz;
 	 local dstfont = priocfg.default_font;
@@ -133,7 +110,7 @@ local function setup_wnd(vid, aid, opts)
 	 end
 
 	 local wnd = prio_new_window(vid, aid, opts) -- Get the window object returned by prio_new_window
-	 target_displayhint(vid, opts.w, opts.h, 0, {ppcm = VPPCM, anchor = wnd.anchor}); -- Pass the anchor
+	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}); -- Pass the anchor
 	 return wnd
 end
 
@@ -143,7 +120,7 @@ function prio_target_window(tgt, cfg, x, y, w, h, force, shader)
 										if (status.kind == "preroll") then
 											 local wnd = setup_wnd(source, status.source_audio,
 																						 {x = x, y = y, w = w, h = h,
-																							force_size = force}, shader);
+																							force_size = force});
 											 target_updatehandler(source, prio_group_handler);
 											 if (wnd) then
 													wnd:select();
@@ -188,145 +165,70 @@ local function wnd_type_options(segkind, orig_opts)
 	 return orig_opts;
 end
 
-local pending = {};
 local whitelist = {
 	 "lightweight arcan", "multimedia",
 	 "terminal", "tui", "remoting", "game", "vm", "application",
-	 "browser", "bridge-x11", "bridge-wayland"
+	 "browser", "bridge-x11", "bridge-wayland",
 };
 
-local function limbo_handler(source, status)
-	 if (status.kind == "resized") then
-			local wnd = pending[source][1];
-			local seg = pending[source][2];
+function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+function client_event_handler(source, status)
+
+	 print("client_event_handler called:")
+	 print(dump(status))
+	 print(dump(source))
+
+	 if status.kind == "terminated" then
+			delete_image(source)
+	 elseif status.kind == "resized" then
+			--resize_image(source, status.width, status.height)
+	 elseif status.kind == "connected" then
+			target_alloc(connection_point, client_event_handler)
+	 elseif status.kind == "registered" then
+	 elseif status.kind == "preroll" then
+			local proptbl = {
+				 x = 0,
+				 y = 0,
+				 w = 32,
+				 h = 32,
+				 force_size = priocfg.force_size,
+				 autocrop = true,
+			};
+
+			local wnd = setup_wnd(source, status.source_audio, proptbl);
+
+			table.insert(tags[current_tag], wnd); -- Add window directly to tags
+
+			arrange(tags, current_tag); -- Call arrange after adding the window
+
 			target_updatehandler(source, prio_group_handler);
-			priowindows[source] = wnd;
-			local tab = wnd:add_tab(source, nil,
-															wnd_type_options(seg, {force_size = wnd.force_size}));
-			pending[source] = nil;
-			if (not tab) then
-				 delete_image(source);
-				 return;
-			end
-			prio_group_handler(source, status);
-	 elseif (status.kind == "terminated") then
-			delete_image(source);
-			pending[source] = nil;
+			send_type_data(source, "terminal");
+
+			wnd:select();
+			wnd.listen_key = key;
+	 elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 end
 end
 
-local function terminal_listen(wnd)
-	 if (wnd.listen_key == nil) then
-			--		print("DEBUG STATE, track:", debug.traceback());
-			return;
-	 end
+function prio_terminal(x, y, w, h, passed_arrange)
+	 local arrange = passed_arrange;
+	 local arg = priocfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. connection_point;
 
-	 target_alloc(wnd.listen_key, function(source, status)
-									 if (status.kind == "preroll") then
-											local found = false;
-											for i,v in ipairs(whitelist) do
-												 if (status.segkind == v) then
-														found = true;
-														break;
-												 end
-											end
-
-											if (not found) then
-												 delete_image(source);
-												 return;
-											end
-
-											send_type_data(source, status.segkind);
-											target_displayhint(source, wnd.width, wnd.height, 0, {ppcm = VPPCM});
-											pending[source] = {wnd, status.segkind};
-											target_updatehandler(source, limbo_handler);
-
-									 elseif (status.kind == "terminated") then
-											delete_image(source);
-											pending[source] = nil;
-									 end
-									 terminal_listen(wnd);
+	 launch_avfeed(arg, "terminal", function(source, status)
+										if (status.kind == "preroll") then
+											 client_event_handler(source, status);
+										end
 	 end);
-end
-
-function prio_listen(key, keep_offline, x, y, w, h, opts)
-	 local alloc;
-	 local last_source;
-
-	 alloc = function()
-			target_alloc(key, function(source, status)
-											if (status.kind == "terminated") then
-												 if (keep_offline) then
-														if (valid_vid(last_source)) then
-															 delete_image(last_source);
-														end
-														last_source = source;
-												 else
-														delete_image(source);
-												 end
-												 alloc();
-											elseif (status.kind == "resized") then
-												 if (valid_vid(last_source)) then
-														delete_image(last_source);
-														last_source = source;
-												 end
-												 show_image(source);
-												 move_image(source, x, y);
-												 resize_image(source, w, h);
-											elseif (status.kind == "preroll") then
-												 target_displayhint(source, w, h);
-											end
-			end);
-	 end
-
-	 alloc();
-end
-
-local charset = "abcdefhigjklmnopqrstuvwxyz1234567890";
-local csetlen = string.len(charset);
-function prio_terminal(x, y, w, h, clients, passed_arrange)
-    local arrange = passed_arrange;
-
-    local key = "prio_term_";
-    for i = 1, 10 do
-        local ind = math.random(1, csetlen);
-        key = key .. string.sub(charset, ind, ind);
-    end
-
-    local arg = priocfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. key;
-    opts = wnd_type_options("terminal", opts);
-
-    launch_avfeed(arg, "terminal", function(source, status)
-        if (status.kind == "preroll") then
-            local proptbl = {
-                x = x,
-                y = y,
-                w = w,
-                h = h,
-                force_size = priocfg.force_size,
-                autocrop = true,
-            };
-            for k, v in pairs(opts) do
-                proptbl[k] = v;
-            end
-            local wnd, tab = setup_wnd(source, status.source_audio, proptbl, proptbl.shader);
-
-            if (not wnd) then
-                delete_image(source);
-                return;
-            end
-
-            table.insert(clients, wnd); -- Add window directly to clients
-            table.insert(tags[current_tag], wnd); -- Add window directly to tags
-
-            arrange(tags, current_tag); -- Call arrange after adding the window
-
-            target_updatehandler(source, prio_group_handler);
-            send_type_data(source, "terminal");
-
-            wnd:select();
-            wnd.listen_key = key;
-            terminal_listen(wnd);
-        end
-    end);
 end

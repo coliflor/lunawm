@@ -1,13 +1,5 @@
 local dirtbl = {"l", "r", "t", "b"};
-
--- need a linear array for window draw order management
-local wndlist = {};
-
 local window_id_counter = 0; -- Initialize a counter for window IDs
-
-function prio_windows_iconsize()
-	 return priocfg.menu_fontsz * 4 * FONT_PT_SZ * (VPPCM / 28.3687);
-end
 
 function prio_windows_linear(hide_hidden)
 	 local res = {};
@@ -20,7 +12,7 @@ function prio_windows_linear(hide_hidden)
 	 return res;
 end
 
-local function reorder_windows()
+function reorder_windows()
 	 for i,v in ipairs(wndlist) do
 			order_image(v.anchor, (i+1) * 10);
 	 end
@@ -328,25 +320,25 @@ local function build_decorations(wnd, opts)
 			wnd.decor_mh.r = {
 				 wnd = wnd, name = "decor_r", own = wnd.decor.r,
 				 ul_near = false, motion = decor_v_over, drag = decor_v_drag,
-				 click = decor_sel, rclick = prio_menu, drop = decor_drop,
+				 click = decor_sel, drop = decor_drop,
 				 out = decor_reset
 			};
 			wnd.decor_mh.t = {
 				 wnd = wnd, name = "decor_t", own = wnd.decor.t,
 				 ul_near = true, motion = decor_h_over, drag = decor_h_drag,
-				 click = decor_sel, rclick = prio_menu, out = decor_reset,
+				 click = decor_sel, out = decor_reset,
 				 drop = decor_drop
 			};
 			wnd.decor_mh.l = {
 				 wnd = wnd, name = "decor_l", own = wnd.decor.l,
 				 ul_near = true, motion = decor_v_over, drag = decor_v_drag,
-				 click = decor_sel, rclick = prio_menu, out = decor_reset,
+				 click = decor_sel, out = decor_reset,
 				 drop = decor_drop
 			};
 			wnd.decor_mh.b = {
 				 wnd = wnd, name = "decor_b", own = wnd.decor.b,
 				 ul_near = false, motion = decor_h_over, drag = decor_h_drag,
-				 click = decor_sel, rclick = prio_menu, drop = decor_drop,
+				 click = decor_sel, drop = decor_drop,
 				 out = decor_reset
 			};
 
@@ -447,121 +439,10 @@ function prio_sel_nearest(wnd, dir)
 	 end
 end
 
-function prio_menu_spawn(list, x, y, ctx)
-	 -- populate a table of the labels to draw
-	 if (priostate) then
-			priostate();
-	 end
-
-	 if (priomenu) then
-			priomenu:destroy();
-	 end
-
-	 local labels = {
-			priocfg.menu_fontstr
-	 };
-	 if (#list == 0) then
-			return;
-	 end
-
-	 local rlist = {};
-
-	 -- dynamic label evaluation, ignore items that are used only for keybinds.
-	 for k,v in ipairs(list) do
-			label = v.label;
-			if (type(v.label) == "function") then
-				 label = v.label(ctx);
-			end
-			if ((not v.eval or v.eval()) and not v.hidden and
-				 type(label) == "string" and string.len(label) > 0) then
-				 table.insert(rlist, v);
-				 table.insert(labels, label);
-				 table.insert(labels, [[\n\r]]);
-			end
-	 end
-
-	 -- this version of render text only treats odd (1- ind.) indices
-	 -- as valid format strings and others as data, so no further escaping
-	 local vid, lineheights = render_text(labels);
-	 if (not valid_vid(vid)) then
-			warning("couldn't render menu text");
-			return;
-	 end
-
-	 local bw = priocfg.menu_border_width;
-	 local props = image_surface_properties(vid);
-	 local w = props.width;
-	 local h = props.height;
-
-	 -- create background with added spacing for the border
-	 local csurf = fill_surface(w + 2*bw, h + 2*bw,
-															unpack(priocfg.menu_background_color));
-	 link_image(vid, csurf);
-	 image_inherit_order(vid, true);
-	 order_image(vid, 1);
-	 move_image(vid, bw, bw);
-	 show_image(vid);
-	 image_mask_set(vid, MASK_UNPICKABLE);
-
-	 -- cursor to indiciate selection
-	 local cursor = fill_surface(
-			w+2*bw, lineheights[2], unpack(priocfg.menu_select_color));
-	 move_image(cursor, -bw, -bw);
-	 blend_image(cursor, priocfg.menu_select_alpha);
-	 link_image(cursor, vid);
-	 image_inherit_order(cursor, true);
-	 order_image(cursor, 1);
-	 image_mask_set(cursor, MASK_UNPICKABLE);
-
-	 local fullw = w + 2 * bw;
-	 local fullh = h + 2 * bw;
-
-	 if (x + w >= VRESW) then	x = VRESW - w; end
-	 if (x < 0) then	x = 0; end
-	 if (y + h >= VRESH) then	y = VRESH - h; end
-	 if (y < 0) then y = 0; end
-
-	 -- reuse the window drawing code but disable resizing and tabs
-	 local wnd = prio_new_window(csurf, BADID, {
-																	tab_block = true, x = x, y = y, w = w+2*bw, h = h+2*bw, no_mouse = true});
-
-	 -- motion and click handler that manage the cursor
-	 wnd:border_color(unpack(priocfg.menu_border_color));
-
-	 local index = 1;
-	 -- different mouse handler that updates cursor and activates selection
-	 wnd.motion = function(wnd, id, mx, my)
-			local rely = my - y;
-			for i=1,#lineheights-1 do
-				 if (rely >= lineheights[i]) then
-						index = i;
-				 end
-			end
-			move_image(cursor, -bw, -bw + lineheights[index]);
-	 end
-	 local olddest = wnd.destroy;
-	 wnd.destroy = function() olddest(wnd); priomenu = nil; end
-	 wnd.rclick = function() wnd:destroy(); end
-	 wnd.click = function()
-			if (not wnd.delete_protect) then
-				 wnd:destroy();
-			end
-
-			if (rlist[index].handler) then
-				 rlist[index].handler(ctx);
-			end
-	 end
-	 mouse_addlistener(wnd, {"motion", "click", "rclick"});
-	 priomenu = wnd;
-	 order_image(wnd.anchor, 65530);
-end
-
-local function window_select(wnd)
+function window_select(wnd)
 	 if (priostate and priostate(wnd)) then
 			return;
 	 end
-
-	 cancel_menu();
 
 	 if (priowin) then
 			if (priowin ~= wnd) then
@@ -645,87 +526,79 @@ local function window_show(wnd)
 end
 
 local function window_destroy(wnd)
-	 local cp = image_surface_resolve_properties(wnd.canvas);
-	 if (priowin == wnd) then
-			priowin = nil;
-	 end
+    local cp = image_surface_resolve_properties(wnd.canvas);
+    if (priowin == wnd) then
+        priowin = nil;
+    end
 
-	 local mx,my = mouse_xy();
-	 if (image_hit(wnd.canvas, mx, my)) then
-			mouse_switch_cursor();
-			mouse_show();
-	 end
+    local mx, my = mouse_xy();
+    if (image_hit(wnd.canvas, mx, my)) then
+        mouse_switch_cursor();
+        mouse_show();
+    end
 
-	 -- drop global tracking
-	 for i=#wndlist,1,-1 do
-			if (wndlist[i] == wnd) then
-				 table.remove(wndlist, i);
-			end
-	 end
+    -- drop global tracking
+    for i = #wndlist, 1, -1 do
+        if (wndlist[i] == wnd) then
+            table.remove(wndlist, i);
+        end
+    end
 
-	 for k,v in pairs(priowindows) do
-			if (v == wnd) then
-				 priowindows[k] = nil;
-			end
-	 end
+    for k, v in pairs(priowindows) do
+        if (v == wnd) then
+            priowindows[k] = nil;
+        end
+    end
 
-	 -- might come from an event on a hidden window
-	 for k,v in ipairs(priohidden) do
-			if (v == wnd) then
-				 table.remove(priohidden, k);
-				 priohidden[wnd] = nil;
-				 break;
-			end
-	 end
+    -- might come from an event on a hidden window
+    for k, v in ipairs(priohidden) do
+        if (v == wnd) then
+            table.remove(priohidden, k);
+            priohidden[wnd] = nil;
+            break;
+        end
+    end
 
-	 -- remove mouse handlers
-	 for k,v in pairs(wnd.decor_mh) do
-			mouse_droplistener(v);
-	 end
-	 mouse_droplistener(wnd);
+    -- remove mouse handlers
+    for k, v in pairs(wnd.decor_mh) do
+        mouse_droplistener(v);
+    end
+    mouse_droplistener(wnd);
 
-	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "destroy");
-	 end
+    for k, v in ipairs(wnd.event_hooks) do
+        v(wnd, "destroy");
+    end
 
-	 -- anchor will just cascade delete everything.
-	 print("Deleting window anchor:", wnd.anchor) -- Debug
-	 delete_image(wnd.anchor);
+    -- anchor will just cascade delete everything.
+    print("Deleting window anchor:", wnd.anchor) -- Debug
+    delete_image(wnd.anchor);
 
-	 -- but reset the table to identify any dangling refs.
-	 for k,v in pairs(wnd) do
-			wnd[k] = nil;
-	 end
-	 wnd.dead = true;
+    -- but reset the table to identify any dangling refs.
+    for k, v in pairs(wnd) do
+        wnd[k] = nil;
+    end
+    wnd.dead = true;
 
-	 -- find something else to select
-	 if (not priowin) then
-			find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1);
-	 end
+    -- find something else to select
+    if (not priowin) then
+        find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1);
+    end
 
-	 -- Remove from clients and tags
-	 local window_id = wnd.id -- Get the window ID
+    -- Remove from tags list
+    local window_id = wnd.id -- Get the window ID
 
-	 for i, client in ipairs(clients) do
-			if client.window_id == window_id then
-				 table.remove(clients, i) -- Remove from clients list
+    for t, tag in pairs(tags) do
+        for j, c in ipairs(tag) do
+            if c == wnd then
+                print("Removed window from tag:", t) -- Debug
+                table.remove(tag, j)
+                break
+            end
+        end
+    end
 
-				 -- Remove from tags list
-				 for t, tag in pairs(tags) do
-						for j, c in ipairs(tag) do
-							 if c == client then
-									table.remove(tag, j)
-									break  -- Important: Exit inner loop after finding the client
-							 end
-						end
-				 end
-				 break --Important: Exit the clients loop
-			end
-	 end
-
-	 -- Call arrange AFTER removing the client
-	 arrange()
-
+    -- Call arrange AFTER removing the wnd
+    arrange()
 end
 
 local function window_move(wnd, x, y)
@@ -863,10 +736,8 @@ local function window_mouseout(ctx)
 	 end
 end
 
---
 -- Return an iterator for iterating windows, windows-with-external
 -- connection
---
 function prio_iter_windows(external)
 	 local ctx = {};
 
@@ -913,84 +784,162 @@ local function window_paste(wnd, msg)
 	 end
 end
 
+--window arrange functions
+
 function arrange()
-	 local tag = tags and tags[current_tag] or {}
-	 local n = #tag
+    local tag = tags and tags[current_tag] or {}
+    local n = #tag
 
-	 if n == 0 then return end
+    if n == 0 then return end
 
-	 local master_area_w = VRESW * priocfg.master_ratio
-	 local master_area_h = VRESH
-	 local stack_area_x = master_area_w
-	 local stack_area_w = VRESW - master_area_w
-	 local stack_area_h = VRESH
-
-	 local gap = priocfg.window_gap or 5
-
-	 if n == 1 then
-			local wnd = tag[1] --Get window object
-			if wnd.margin == nil then return end -- WTF
-			local pad_w = wnd.margin.l + wnd.margin.r;
-			local pad_h = wnd.margin.t + wnd.margin.b;
-			wnd:move(wnd.margin.l + gap/2, wnd.margin.t + gap/2);
-			wnd:resize(VRESW - pad_w - gap, VRESH - pad_h - gap);
-			return
-	 end
-
-	 -- Master window (n > 1)
-	 local master = tag[1] --Get window object
-	 if master.margin == nil then return end -- WTF
-	 local pad_w = master.margin.l + master.margin.r;
-	 local pad_h = master.margin.t + master.margin.b;
-	 master:move(master.margin.l + gap/2, master.margin.t + gap/2);
-	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap);
-
-	 -- Stack windows (n > 1)
-	 local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
-	 for i = 2, n do
-			local wnd = tag[i] --Get window object
-			if wnd.margin == nil then return end -- WTF
-			local pad_w = wnd.margin.l + wnd.margin.r;
-			local pad_h = wnd.margin.t + wnd.margin.b;
-			wnd:move(stack_area_x + wnd.margin.l + gap/2, (i - 2) * stack_h + wnd.margin.t + gap/2 + (i - 2) * gap);
-			wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap);
-	 end
+    if layout_mode == "monocle" then
+        arrange_monocle(tag)
+    elseif layout_mode == "middle_stack" then
+        arrange_master_middle_stack(tag)
+    elseif layout_mode == "grid" then
+        arrange_grid(tag)
+    else -- Default to the existing master/stack layout
+        arrange_master_stack(tag)
+    end
 end
 
-function set_window_geometry(client) --Helper function
-	 move_image(client.anchor, client.x, client.y)
-	 resize_image(client.anchor, client.w, client.h)
+function arrange_monocle(tag)
+    local gap = priocfg.window_gap or 5
+    local n = #tag
+
+    for i = 1, n do
+        local wnd = tag[i]
+        local pad_w = wnd.margin.l + wnd.margin.r
+        local pad_h = wnd.margin.t + wnd.margin.b
+        wnd:move(wnd.margin.l + gap / 2, wnd.margin.t + gap / 2)
+        wnd:resize(VRESW - pad_w - gap, VRESH - pad_h - gap)
+    end
 end
 
-local function add_client(window_id)
-	 local client = {
-			window_id = window_id,
-			x = 0, y = 0, w = 0, h = 0,
-			tags = {1},  -- Default tag 1
-			floating = false, -- Start tiled
-			anchor = priowindows[window_id].anchor -- Get the anchor image
-	 };
-	 table.insert(clients, client);
-	 table.insert(tags[current_tag] or {}, client)
-	 arrange();
+function arrange_grid(tag)
+    local n = #tag
+    local gap = priocfg.window_gap or 5
+
+    local cols = math.ceil(math.sqrt(n))
+    local rows = math.ceil(n / cols)
+
+    local tile_width = VRESW / cols
+    local tile_height = VRESH / rows
+
+    local index = 1
+    for row = 1, rows do
+        for col = 1, cols do
+            if index <= n then
+                local wnd = tag[index]
+                local pad_w = wnd.margin.l + wnd.margin.r
+                local pad_h = wnd.margin.t + wnd.margin.b
+
+                local x = (col - 1) * tile_width + wnd.margin.l + gap / 2
+                local y = (row - 1) * tile_height + wnd.margin.t + gap / 2
+
+                wnd:move(x, y)
+                wnd:resize(tile_width - pad_w - gap, tile_height - pad_h - gap)
+
+                index = index + 1
+            end
+        end
+    end
 end
 
-local function remove_client(window_id)
-	 for i, client in ipairs(clients) do
-			if client.window_id == window_id then
-				 table.remove(clients, i)
-				 for t, tag in pairs(tags) do -- Remove from all tags
-						for j, c in ipairs(tag) do
-							 if c == client then
-									table.remove(tag, j)
-									break
-							 end
-						end
-				 end
-				 break
-			end
-	 end
-	 arrange()
+function arrange_master_middle_stack(tag)
+    local n = #tag
+
+    if n == 1 then
+        arrange_monocle(tag)
+        return
+    end
+
+    local master_area_w = VRESW * priocfg.master_ratio
+    local master_area_h = VRESH
+    local stack_area_w = (VRESW - master_area_w) / 2
+    local stack_area_h = VRESH
+
+    local gap = priocfg.window_gap or 5
+
+    -- Master window (n > 1)
+    local master = tag[1]
+    local pad_w = master.margin.l + master.margin.r
+    local pad_h = master.margin.t + master.margin.b
+    master:move((VRESW - master_area_w) / 2 + master.margin.l + gap / 2, master.margin.t + gap / 2)
+    master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
+
+    -- Stack windows (n > 1)
+    local left_stack = {}
+    local right_stack = {}
+
+    for i = 2, n do
+        if i % 2 == 0 then
+            table.insert(left_stack, tag[i])
+        else
+            table.insert(right_stack, tag[i])
+        end
+    end
+
+    local left_n = #left_stack
+    local right_n = #right_stack
+
+    local left_stack_h = (stack_area_h - (left_n - 1) * gap) / left_n
+    local right_stack_h = (stack_area_h - (right_n - 1) * gap) / right_n
+
+    -- Left Stack
+    for i, wnd in ipairs(left_stack) do
+        local pad_w = wnd.margin.l + wnd.margin.r
+        local pad_h = wnd.margin.t + wnd.margin.b
+        wnd:move(wnd.margin.l + gap / 2, (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap)
+        wnd:resize(stack_area_w - pad_w - gap, left_stack_h - pad_h - gap)
+    end
+
+    -- Right Stack
+    for i, wnd in ipairs(right_stack) do
+        local pad_w = wnd.margin.l + wnd.margin.r
+        local pad_h = wnd.margin.t + wnd.margin.b
+        wnd:move(VRESW - stack_area_w + wnd.margin.l + gap / 2, (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap)
+        wnd:resize(stack_area_w - pad_w - gap, right_stack_h - pad_h - gap)
+    end
+end
+
+function arrange_master_stack(tag)
+    local n = #tag
+
+    if n == 1 then
+        arrange_monocle(tag)
+        return
+    end
+
+    local master_area_w = VRESW * priocfg.master_ratio
+    local master_area_h = VRESH
+    local stack_area_x = master_area_w
+    local stack_area_w = VRESW - master_area_w
+    local stack_area_h = VRESH
+
+    local gap = priocfg.window_gap or 5
+
+    -- Master window (n > 1)
+    local master = tag[1]
+    local pad_w = master.margin.l + master.margin.r
+    local pad_h = master.margin.t + master.margin.b
+    master:move(master.margin.l + gap / 2, master.margin.t + gap / 2)
+    master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
+
+    -- Stack windows (n > 1)
+    local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
+    for i = 2, n do
+        local wnd = tag[i]
+        local pad_w = wnd.margin.l + wnd.margin.r
+        local pad_h = wnd.margin.t + wnd.margin.b
+        wnd:move(stack_area_x + wnd.margin.l + gap / 2, (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap)
+        wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)
+    end
+end
+
+function set_layout_mode(mode)
+    layout_mode = mode
+    arrange() -- Re-arrange windows after changing layout
 end
 
 function prio_new_window(vid, aid, opts)

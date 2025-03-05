@@ -44,13 +44,13 @@ return {
 	 -- Example keybindings
 	 [M2 .. "1"] = "view_tag_1",  -- Switch to tag 1
 	 [M2 .. "2"] = "view_tag_2",  -- Switch to tag 2
-	 [M2 .. "j"] = "focus_next", -- Focus next window
-	 [M2 .. "k"] = "focus_prev", -- Focus previous window
 	 [M2 .. "q"] = "destroy_active_window", -- Close window
 	 [M2 .. "z"]  = "drag_window", -- Drag Window
 
 	 [M2 .. "y"] = "cycle_layout",
 	 [M2 .. "k"] = "rotate_window_stack",
 	 [M2 .. "j"] = "rotate_window_stack_negative",
+	 [M2 .. "l"] = "decrease_master_width",
+	 [M2 .. "h"] = "increase_master_width",
 	 [M2 .. "z"] = "swap_master",
 };

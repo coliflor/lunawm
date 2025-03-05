@@ -2,6 +2,12 @@ return {
 	 num_tags = 2; -- Number of workspaces/tags
 	 master_ratio = 0.6; -- Ratio of master window size
 
+	 conn_point = "awm",
+
+	 -- statusbar
+	 statusbar_height = 20,
+	 statusbar_position = "top", --bottom
+
 	 -- input tuning
 	 keymap = "default.lua",
 	 drag_resize_inertia = 8,
@@ -25,18 +31,6 @@ return {
 	 terminal_cfg = "palette=solarized-black:bgalpha=190:"; -- END with :
 	 default_font = {"fonts.ttf", "emoji.ttf"},
 	 default_font_sz = 12 * FONT_PT_SZ,
-
-	 -- popup menu
-	 menu_border_color = {66, 174, 57},
-	 menu_background_color = {47, 122, 40},
-	 menu_border_width = 2,
-	 menu_select_color = {255, 255, 255},
-	 menu_select_alpha = 0.3,
-
-	 -- these get merged together (and fontsz magnified to match display density
-	 -- hence the trailing ,
-	 menu_fontsz = 14,
-	 menu_fontstr = [[\#ffffff\ffonts/default.ttf,]],
 
 	 -- selection region
 	 select_color = {0, 255, 0},

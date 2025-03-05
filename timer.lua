@@ -14,9 +14,6 @@ local idle_count = 0;
 local tick_count = 0;
 local idle_masked = false;
 
-local leave_fmtstr = "type=idle:state=leave:once=%d:name=%s";
-local enter_fmtstr = "type=idle:state=enter:once=%d:name=%s";
-
 local function run_idle_timers()
     for i=#idle_timers,1,-1 do
         local timer = idle_timers[i];
@@ -103,8 +100,8 @@ function timer_list(group, active)
     end
 
     local res = {};
-    for i,j in ipairs(groups) do
-        for k,l in ipairs(j) do
+    for _,j in ipairs(groups) do
+        for _,l in ipairs(j) do
             if (not l.hidden and (
                 active == nil or ((active == true and not l.suspended) or
                 (active == false and l.suspended)))) then
@@ -119,7 +116,7 @@ end
 function timer_reset_idle()
     idle_count = 0;
 
-    for i,v in ipairs(wakeups) do
+    for _,v in ipairs(wakeups) do
         --timer_debug(string.format(leave_fmtstr, v[2] and 1 or 0, v[3]));
         v[1]();
     end
@@ -129,7 +126,7 @@ function timer_reset_idle()
 -- didn't fire, e.g. if they were added while we already were in a passive
 -- state (as 'active' is defined from user-interaction, not via other IPC
 -- means)
-    for i,v in ipairs(idle_timers) do
+    for _,v in ipairs(idle_timers) do
         if (v.passive) then
             v.passive = nil;
         end

@@ -10,8 +10,7 @@ local function wrun(fun)
 end
 
 actions.terminal = function()
-	 local tag = tags and tags[current_tag] or {} -- Get the current tag's windows
-	 local n = #tag -- Number of windows on the current tag
+	 local tag = wm.tags and wm.tags[current_tag] or {} -- Get the current tag's windows
 	 create_terminal(0, 0, 0, 0)
 end
 
@@ -28,8 +27,8 @@ local function view_tag(tag_number, wnd)
 
 	 -- Create a snapshot of the target tag's windows
 	 local target_tag_windows = {};
-	 if (tags[tag_number]) then
-			for _, tag_wnd in ipairs(tags[tag_number]) do
+	 if (wm.tags[tag_number]) then
+			for _, tag_wnd in ipairs(wm.tags[tag_number]) do
 				 table.insert(target_tag_windows, tag_wnd);
 			end
 	 end
@@ -57,8 +56,8 @@ local function view_tag(tag_number, wnd)
 
 	 -- Debug: Print the windows in the current tag
 	 print("Tag " .. tag_number .. " windows:");
-	 if (tags[tag_number]) then
-			for _, tag_wnd in ipairs(tags[tag_number]) do
+	 if (wm.tags[tag_number]) then
+			for _, tag_wnd in ipairs(wm.tags[tag_number]) do
 				 if (tag_wnd and tag_wnd.id) then
 						print("  Window ID: " .. tag_wnd.id);
 				 else
@@ -101,7 +100,7 @@ actions.assign_bottom   = wrun(function(wnd) wnd:maximize("b"); end);
 actions.assign_left     = wrun(function(wnd) wnd:maximize("l"); end);
 actions.assign_right    = wrun(function(wnd) wnd:maximize("r"); end);
 
-actions.set_temp_prefix_1 = function() priosym.prefix = "t1_"; end
+actions.set_temp_prefix_1 = function() wm.sym.prefix = "t1_" end
 
 actions.hide = wrun(function(wnd) wnd:hide(); end);
 actions.copy = wrun(function(wnd)
@@ -126,7 +125,7 @@ end
 
 -- Function to rotate through the window stack (positive direction) within the current tag
 actions.rotate_window_stack = function()
-    local current_tag_windows = tags[current_tag];
+    local current_tag_windows = wm.tags[current_tag];
 
     if not current_tag_windows or #current_tag_windows <= 1 then
         return; -- No windows in the current tag or only one window
@@ -154,7 +153,7 @@ end
 
 -- Function to rotate through the window stack (negative direction) within the current tag
 actions.rotate_window_stack_negative = function()
-    local current_tag_windows = tags[current_tag];
+    local current_tag_windows = wm.tags[current_tag];
 
     if not current_tag_windows or #current_tag_windows <= 1 then
         return; -- No windows in the current tag or only one window
@@ -187,7 +186,7 @@ end
 local previous_selected_window = nil -- Global variable to store the previously selected window
 
 actions.swap_master = function()
-    local tag = tags and tags[current_tag] or {}
+    local tag = wm.tags and wm.tags[current_tag] or {}
     local n = #tag
 
     if n <= 1 then
@@ -241,6 +240,19 @@ actions.swap_master = function()
     arrange()
 end
 
+-- Function to increase master window width
+actions.increase_master_width = function()
+    wm.cfg.master_ratio = math.min(wm.cfg.master_ratio + 0.05, 0.95) -- Increase by 5%, limit to 95%
+    print("Master ratio increased to:", wm.cfg.master_ratio)
+		arrange()
+end
+
+-- Function to decrease master window width
+actions.decrease_master_width = function()
+    wm.cfg.master_ratio = math.max(wm.cfg.master_ratio - 0.05, 0.10) -- Decrease by 5%, limit to 10%
+    print("Master ratio decreased to:", wm.cfg.master_ratio)
+		arrange()
+end
 
 actions["terminal"] = actions.terminal
 

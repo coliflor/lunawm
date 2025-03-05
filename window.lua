@@ -1,10 +1,217 @@
 local dirtbl = {"l", "r", "t", "b"};
 local window_id_counter = 0; -- Initialize a counter for window IDs
+local wndlist = {};
+local hidden = {};
+
+-- ----------------------------------------------------
+--  helper functions for window spawn
+-- ----------------------------------------------------
+local defevhs = {};
+
+local function cursor_handler(wnd, source, status)
+	 if (status.kind == "terminated") then
+			delete_image(source);
+			wnd.mouse_cursor = nil;
+			local mx, my = mouse_xy();
+			if (image_hit(wnd.canvas, mx, my)) then
+				 wnd:over();
+			end
+	 end
+end
+
+local function clipboard_handler(wnd, source, status)
+	 if (status.kind == "message") then
+			if (not wnd.multipart) then
+				 wnd.multipart = {};
+			end
+			table.insert(wnd.multipart, status.message);
+			if (not status.multipart) then
+				 wnd.clipboard_message = table.concat(wnd.multipart, "");
+				 CLIPBOARD_MESSAGE = wnd.clipboard_message;
+				 wnd.multipart = {};
+			end
+	 elseif (status.kind == "terminated") then
+			delete_image(source);
+	 end
+end
+
+defevhs["resized"] =
+	 function(wnd, source, status)
+			wnd.flip_y = status.origo_ll;
+
+			if (wnd.target == source) then
+				 wnd.aid = source_audio;
+				 if (wnd.force_size) then
+						wnd:resize(wnd.width, wnd.height);
+				 else
+						wnd:resize(status.width, status.height, true);
+				 end
+				 wnd:update_tprops();
+			end
+	 end
+
+defevhs["terminated"] =
+	 function(wnd, source, status)
+			wnd:lost(source);
+	 end
+
+defevhs["ident"] =
+	 function(wnd, source, status)
+			wnd.ident = status.message
+	 end
+
+defevhs["segment_request"] =
+	 function(wnd, source, stat)
+			if (stat.segkind == "clipboard" and tab) then
+				 if (valid_vid(tab.clipboard_in)) then
+						delete_image(tab.clipboard_in);
+				 end
+				 tab.clipboard_in = accept_target(
+						function(src, stat)
+							 clipboard_handler(wnd, src, stat);
+				 end);
+				 link_image(tab.clipboard_in, wnd.anchor);
+
+				 -- a little complicated, some clients (like games) start with
+				 -- no cursor and might enable one as a custom subsegment
+			elseif (stat.segkind == "cursor") then
+				 local new = accept_target(
+						function(src, stat)
+							 cursor_handler(wnd, src, stat);
+						end
+				 );
+				 if (valid_vid(new)) then
+						link_image(new, wnd.anchor);
+						if (wnd.active_tab == tab) then
+							 wnd.mouse_cursor = new;
+							 local mx,my = mouse_xy();
+							 if (image_hit(wnd.canvas, mx, my)) then
+									wnd:over();
+							 end
+						end
+						tab.mouse_cursor = new;
+				 end
+			else
+				 -- just reject
+			end
+	 end
+
+function prio_group_handler(source, status)
+	 local wnd = priowindows[source];
+	 if (wnd and defevhs[status.kind]) then
+			defevhs[status.kind](wnd, source, status);
+	 end
+end
+
+local function send_type_data(source, segkind)
+	 local dstfont_sz = wm.cfg.default_font_sz;
+	 local dstfont = wm.cfg.default_font;
+
+	 if (segkind == "terminal" or segkind == "tui") then
+			dstfont = wm.cfg.terminal_font;
+			dstfont_sz = wm.cfg.terminal_font_sz;
+	 end
+
+	 for i,v in ipairs(dstfont) do
+			target_fonthint(source, v, dstfont_sz, wm.cfg.terminal_hint, i > 1);
+	 end
+end
+
+local function setup_wnd(vid, aid, opts)
+	 if (not valid_vid(vid, TYPE_FRAMESERVER)) then
+			return;
+	 end
+
+	 local wnd = prio_new_window(vid, aid, opts) -- Get the window object returned by prio_new_window
+	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}); -- Pass the anchor
+	 return wnd
+end
+
+function prio_target_window(tgt, cfg, x, y, w, h, force, shader)
+	 launch_target(tgt, cfg, LAUNCH_INTERNAL,
+								 function(source, status)
+										if (status.kind == "preroll") then
+											 local wnd = setup_wnd(source, status.source_audio,
+																						 {x = x, y = y, w = w, h = h,
+																							force_size = force});
+											 target_updatehandler(source, prio_group_handler);
+											 if (wnd) then
+													wnd:select();
+											 end
+										end
+								 end
+	 );
+end
+
+local function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+function client_event_handler(source, status)
+
+	 print("client_event_handler called:")
+	 print(dump(status))
+	 print(dump(source))
+
+	 if status.kind == "terminated" then
+			delete_image(source)
+	 elseif status.kind == "resized" then
+			--resize_image(source, status.width, status.height)
+	 elseif status.kind == "connected" then
+			target_alloc(wm.cfg.conn_point, client_event_handler)
+	 elseif status.kind == "registered" then
+	 elseif status.kind == "preroll" then
+			local proptbl = {
+				 x = 0,
+				 y = 0,
+				 w = 32,
+				 h = 32,
+				 force_size = wm.cfg.force_size,
+				 autocrop = true,
+			};
+
+			local wnd = setup_wnd(source, status.source_audio, proptbl);
+
+			table.insert(wm.tags[current_tag], wnd); -- Add window directly to tags
+
+			arrange() -- Call arrange after adding the window
+
+			target_updatehandler(source, prio_group_handler);
+			send_type_data(source, "terminal");
+
+			wnd:select();
+			wnd.listen_key = key;
+	 elseif status.kind == "segment_request" and status.segkind == "clipboard" then
+	 end
+end
+
+function prio_terminal(x, y, w, h)
+	 local arg = wm.cfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. wm.cfg.conn_point;
+
+	 launch_avfeed(arg, "terminal", function(source, status)
+										if (status.kind == "preroll") then
+											 client_event_handler(source, status);
+										end
+	 end);
+end
+
+-- ----------------------------------------------------
+-- Window Managment
+-- ----------------------------------------------------
 
 function prio_windows_linear(hide_hidden)
 	 local res = {};
 	 for i,v in ipairs(wndlist) do
-			if (not hide_hidden or not priohidden[v]) then
+			if (not hide_hidden or not hidden[v]) then
 				 table.insert(res, v);
 			end
 	 end
@@ -19,7 +226,7 @@ function reorder_windows()
 end
 
 local function window_decor_resize(wnd, neww, newh)
-	 local bw = priocfg.border_width;
+	 local bw = wm.cfg.border_width;
 	 if (not wnd.decor.l) then return; end
 	 resize_image(wnd.decor.l, bw, newh);
 	 resize_image(wnd.decor.r, bw, newh);
@@ -152,8 +359,8 @@ function decor_v_drag(ctx, vid, dx, dy)
 			return;
 	 end
 
-	 local inx = priocfg.drag_resize_inertia;
-	 local iny = priocfg.drag_resize_inertia;
+	 local inx = wm.cfg.drag_resize_inertia;
+	 local iny = wm.cfg.drag_resize_inertia;
 	 set_trigger_point(ctx, vid);
 
 	 ctx.wnd:select();
@@ -202,8 +409,8 @@ function decor_h_drag(ctx, vid, dx, dy)
 	 end
 
 	 -- cases: 1,2,3 - 6,7,8
-	 local inx = priocfg.drag_resize_inertia;
-	 local iny = priocfg.drag_resize_inertia;
+	 local inx = wm.cfg.drag_resize_inertia;
+	 local iny = wm.cfg.drag_resize_inertia;
 	 set_trigger_point(ctx, vid);
 	 ctx.wnd:select();
 	 if (ctx.wnd.inertia) then
@@ -303,11 +510,11 @@ end
 --                        l  r
 --                        bbbb and anchor for easier resize
 local function build_decorations(wnd, opts)
-	 local bw = priocfg.border_width;
+	 local bw = wm.cfg.border_width;
 	 for k, v in ipairs(dirtbl) do
 			wnd.decor[v] = color_surface(1, 1, 0, 0, 0);
 			image_inherit_order(wnd.decor[v], true);
-			blend_image(wnd.decor[v], priocfg.border_alpha);
+			blend_image(wnd.decor[v], wm.cfg.border_alpha);
 			wnd.margin[v] = bw;
 	 end
 
@@ -351,8 +558,8 @@ local function build_decorations(wnd, opts)
 
 	 if (opts.effect_hook) then
 			opts.effect_hook(wnd);
-	 elseif (priocfg.effect_hook) then
-			priocfg.effect_hook(wnd);
+	 elseif (wm.cfg.effect_hook) then
+			wm.cfg.effect_hook(wnd);
 	 end
 
 	 window_decor_resize(wnd, wnd.width, wnd.height);
@@ -467,7 +674,7 @@ function window_select(wnd)
 			wnd.dispmask = (bit.band(wnd.dispmask, bit.bnot(TD_HINT_UNFOCUSED)));
 			target_displayhint(wnd.target, 0, 0, wnd.dispmask);
 	 end
-	 wnd:border_color(unpack(priocfg.active_color));
+	 wnd:border_color(unpack(wm.cfg.active_color));
 	 reorder_windows();
 
 	 for k,v in ipairs(wnd.event_hooks) do
@@ -481,7 +688,7 @@ local function window_deselect(wnd)
 			wnd.dispmask = bit.bor(wnd.dispmask, TD_HINT_UNFOCUSED);
 			target_displayhint(wnd.target, 0, 0, wnd.dispmask);
 	 end
-	 wnd:border_color(unpack(priocfg.inactive_color));
+	 wnd:border_color(unpack(wm.cfg.inactive_color));
 	 if (priowin == wnd) then
 			priowin = nil;
 	 end
@@ -506,16 +713,16 @@ local function window_hide(wnd)
 			v(wnd, "hide");
 	 end
 
-	 table.insert(priohidden, wnd);
-	 priohidden[wnd] = true;
+	 table.insert(hidden, wnd);
+	 hidden[wnd] = true;
 end
 
 local function window_show(wnd)
-	 for k,v in ipairs(priohidden) do
+	 for k,v in ipairs(hidden) do
 			if (v == wnd) then
 				 wnd:select();
-				 table.remove(priohidden, k);
-				 priohidden[wnd] = nil;
+				 table.remove(hidden, k);
+				 hidden[wnd] = nil;
 				 show_image(wnd.anchor);
 				 for k,v in ipairs(wnd.event_hooks) do
 						v(wnd, "show");
@@ -551,10 +758,10 @@ local function window_destroy(wnd)
     end
 
     -- might come from an event on a hidden window
-    for k, v in ipairs(priohidden) do
+    for k, v in ipairs(hidden) do
         if (v == wnd) then
-            table.remove(priohidden, k);
-            priohidden[wnd] = nil;
+            table.remove(hidden, k);
+            hidden[wnd] = nil;
             break;
         end
     end
@@ -587,7 +794,7 @@ local function window_destroy(wnd)
     -- Remove from tags list
     local window_id = wnd.id -- Get the window ID
 
-    for t, tag in pairs(tags) do
+    for t, tag in pairs(wm.tags) do
         for j, c in ipairs(tag) do
             if c == wnd then
                 print("Removed window from tag:", t) -- Debug
@@ -641,8 +848,8 @@ local function window_maximize(wnd, dir)
 end
 
 local function step_sz(wnd)
-	 local ssx = wnd.inertia and wnd.inertia[1] or priocfg.drag_resize_inertia;
-	 local ssy = wnd.inertia and wnd.inertia[2] or priocfg.drag_resize_inertia;
+	 local ssx = wnd.inertia and wnd.inertia[1] or wm.cfg.drag_resize_inertia;
+	 local ssy = wnd.inertia and wnd.inertia[2] or wm.cfg.drag_resize_inertia;
 	 return ssx, ssy;
 end
 
@@ -787,7 +994,7 @@ end
 --window arrange functions
 
 function arrange()
-    local tag = tags and tags[current_tag] or {}
+    local tag = wm.tags and wm.tags[current_tag] or {}
     local n = #tag
 
     if n == 0 then return end
@@ -804,27 +1011,37 @@ function arrange()
 end
 
 function arrange_monocle(tag)
-    local gap = priocfg.window_gap or 5
+    local gap = wm.cfg.window_gap or 5
     local n = #tag
+    local statusbar_height = wm.cfg.statusbar_height or 20
+    local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
     for i = 1, n do
         local wnd = tag[i]
         local pad_w = wnd.margin.l + wnd.margin.r
         local pad_h = wnd.margin.t + wnd.margin.b
-        wnd:move(wnd.margin.l + gap / 2, wnd.margin.t + gap / 2)
-        wnd:resize(VRESW - pad_w - gap, VRESH - pad_h - gap)
+
+        local wnd_y = wnd.margin.t + gap / 2
+        if statusbar_position == "top" then
+            wnd_y = wnd_y + statusbar_height
+        end
+
+        wnd:move(wnd.margin.l + gap / 2, wnd_y)
+        wnd:resize(VRESW - pad_w - gap, VRESH - statusbar_height - pad_h - gap)
     end
 end
 
 function arrange_grid(tag)
     local n = #tag
-    local gap = priocfg.window_gap or 5
+    local gap = wm.cfg.window_gap or 5
+    local statusbar_height = wm.cfg.statusbar_height or 20
+    local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
     local cols = math.ceil(math.sqrt(n))
     local rows = math.ceil(n / cols)
 
     local tile_width = VRESW / cols
-    local tile_height = VRESH / rows
+    local tile_height = (VRESH - statusbar_height) / rows
 
     local index = 1
     for row = 1, rows do
@@ -837,6 +1054,10 @@ function arrange_grid(tag)
                 local x = (col - 1) * tile_width + wnd.margin.l + gap / 2
                 local y = (row - 1) * tile_height + wnd.margin.t + gap / 2
 
+                if statusbar_position == "top" then
+                    y = y + statusbar_height
+                end
+
                 wnd:move(x, y)
                 wnd:resize(tile_width - pad_w - gap, tile_height - pad_h - gap)
 
@@ -848,24 +1069,32 @@ end
 
 function arrange_master_middle_stack(tag)
     local n = #tag
+    local statusbar_height = wm.cfg.statusbar_height or 20
+    local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
     if n == 1 then
         arrange_monocle(tag)
         return
     end
 
-    local master_area_w = VRESW * priocfg.master_ratio
-    local master_area_h = VRESH
+    local master_area_w = VRESW * wm.cfg.master_ratio
+    local master_area_h = VRESH - statusbar_height
     local stack_area_w = (VRESW - master_area_w) / 2
-    local stack_area_h = VRESH
+    local stack_area_h = VRESH - statusbar_height
 
-    local gap = priocfg.window_gap or 5
+    local gap = wm.cfg.window_gap or 5
 
     -- Master window (n > 1)
     local master = tag[1]
     local pad_w = master.margin.l + master.margin.r
     local pad_h = master.margin.t + master.margin.b
-    master:move((VRESW - master_area_w) / 2 + master.margin.l + gap / 2, master.margin.t + gap / 2)
+
+    local master_y = master.margin.t + gap / 2
+    if statusbar_position == "top" then
+        master_y = master_y + statusbar_height
+    end
+
+    master:move((VRESW - master_area_w) / 2 + master.margin.l + gap / 2, master_y)
     master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
 
     -- Stack windows (n > 1)
@@ -890,7 +1119,13 @@ function arrange_master_middle_stack(tag)
     for i, wnd in ipairs(left_stack) do
         local pad_w = wnd.margin.l + wnd.margin.r
         local pad_h = wnd.margin.t + wnd.margin.b
-        wnd:move(wnd.margin.l + gap / 2, (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap)
+
+        local wnd_y = (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
+        if statusbar_position == "top" then
+            wnd_y = wnd_y + statusbar_height
+        end
+
+        wnd:move(wnd.margin.l + gap / 2, wnd_y)
         wnd:resize(stack_area_w - pad_w - gap, left_stack_h - pad_h - gap)
     end
 
@@ -898,32 +1133,46 @@ function arrange_master_middle_stack(tag)
     for i, wnd in ipairs(right_stack) do
         local pad_w = wnd.margin.l + wnd.margin.r
         local pad_h = wnd.margin.t + wnd.margin.b
-        wnd:move(VRESW - stack_area_w + wnd.margin.l + gap / 2, (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap)
+
+        local wnd_y = (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
+        if statusbar_position == "top" then
+            wnd_y = wnd_y + statusbar_height
+        end
+
+        wnd:move(VRESW - stack_area_w + wnd.margin.l + gap / 2, wnd_y)
         wnd:resize(stack_area_w - pad_w - gap, right_stack_h - pad_h - gap)
     end
 end
 
 function arrange_master_stack(tag)
     local n = #tag
+    local statusbar_height = wm.cfg.statusbar_height or 20
+    local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
     if n == 1 then
         arrange_monocle(tag)
         return
     end
 
-    local master_area_w = VRESW * priocfg.master_ratio
-    local master_area_h = VRESH
+    local master_area_w = VRESW * wm.cfg.master_ratio
+    local master_area_h = VRESH - statusbar_height
     local stack_area_x = master_area_w
     local stack_area_w = VRESW - master_area_w
-    local stack_area_h = VRESH
+    local stack_area_h = VRESH - statusbar_height
 
-    local gap = priocfg.window_gap or 5
+    local gap = wm.cfg.window_gap or 5
 
     -- Master window (n > 1)
     local master = tag[1]
     local pad_w = master.margin.l + master.margin.r
     local pad_h = master.margin.t + master.margin.b
-    master:move(master.margin.l + gap / 2, master.margin.t + gap / 2)
+
+    local master_y = master.margin.t + gap / 2
+    if statusbar_position == "top" then
+        master_y = master_y + statusbar_height
+    end
+
+    master:move(master.margin.l + gap / 2, master_y)
     master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
 
     -- Stack windows (n > 1)
@@ -932,7 +1181,13 @@ function arrange_master_stack(tag)
         local wnd = tag[i]
         local pad_w = wnd.margin.l + wnd.margin.r
         local pad_h = wnd.margin.t + wnd.margin.b
-        wnd:move(stack_area_x + wnd.margin.l + gap / 2, (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap)
+
+        local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap
+        if statusbar_position == "top" then
+            wnd_y = wnd_y + statusbar_height
+        end
+
+        wnd:move(stack_area_x + wnd.margin.l + gap / 2, wnd_y)
         wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)
     end
 end
@@ -951,7 +1206,7 @@ function prio_new_window(vid, aid, opts)
 			return;
 	 end
 
-	 blend_image(anchor, 1.0, priocfg.animation_speed);
+	 blend_image(anchor, 1.0, wm.cfg.animation_speed);
 	 move_image(anchor, opts.x, opts.y);
 	 link_image(vid, anchor);
 	 image_inherit_order(vid, true);
@@ -975,6 +1230,8 @@ function prio_new_window(vid, aid, opts)
 			created = CLOCK,
 			dispmask = 0, -- tracking display state
 			event_hooks = {},
+			title = "",
+			ident = "",
 
 			-- decorations
 			decor = {},

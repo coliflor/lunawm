@@ -139,4 +139,4 @@ timer_add_periodic("control", 1, false, function()
 											end
 end, true)
 
-return prio_ipc;
+return prio_ipc

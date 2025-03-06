@@ -1,9 +1,12 @@
 wm = {
 	 sym = {},
 	 cfg = {},
-	 tags = {};  --(workspaces)
 
 	 bg = nil, -- background
+
+	 -- Tiling-specific data
+	 tags = {},  --(workspaces)
+	 current_tag = 1, -- Currently active tag
 }
 
 priowindows = {};
@@ -11,116 +14,94 @@ prioactions = {};
 priovariables = {};
 CLIPBOARD_MESSAGE = "";
 
--- New: Tiling-specific data
-current_tag = 1; -- Currently active tag
-layout_mode = "master_stack" -- Default layout mode
-
 function awm()
 
 	 wm.sym = system_load("builtin/keyboard.lua")(); -- keyboard translation
 	 wm.cfg = system_load("config.lua")();
-	 priovariables =  system_load("variables.lua")();
-	 system_load("builtin/mouse.lua")(); -- mouse gesture abstraction etc.
-	 system_load("timer.lua")();
-	 system_load("window.lua")(); -- window creation
-	 prioactions = system_load("actions.lua")(); -- bindable actions
-	 system_load("ipc.lua")();
-	 priobindings = system_load("keybindings.lua")(); -- keysym+mods -> actions
+	 priovariables =  system_load("variables.lua")()
+	 system_load("builtin/mouse.lua")() -- mouse gesture abstraction etc.
+	 system_load("timer.lua")()
+	 system_load("window.lua")() -- window creation
+	 prioactions = system_load("actions.lua")() -- bindable actions
+	 system_load("ipc.lua")()
+	 priobindings = system_load("keybindings.lua")() -- keysym+mods -> actions
 
 	 -- Initialize tags:
 	 for i = 1, wm.cfg.num_tags do
 			wm.tags[i] = {}
 	 end
 
-	 function create_terminal(x, y, w, h) -- Wrapper function
-			prio_terminal(x, y, w, h)
-	 end
-
 	 -- mipmap is build-time default off, vfilter is bilinear
-	 switch_default_texfilter(FILTER_NONE);
+	 switch_default_texfilter(FILTER_NONE)
 
 	 -- default gain value for all new sources
-	 audio_gain(0, wm.cfg.global_gain);
+	 audio_gain(0, wm.cfg.global_gain)
 
 	 -- some platforms/devices don't support this and we should provide
 	 -- a fallback, but that's missing now
-	 kbd_repeat(wm.cfg.repeat_period, wm.cfg.repeat_delay);
+	 kbd_repeat(wm.cfg.repeat_period, wm.cfg.repeat_delay)
 
 	 -- we'll always "overdraw" when updating due to the background image
-	 rendertarget_noclear(WORLDID, true);
-	 bg = fill_surface(VRESW, VRESH, 64, 64, 64);
-	 show_image(wm.bg);
+	 rendertarget_noclear(WORLDID, true)
+	 wm.bg = fill_surface(VRESW, VRESH, 64, 64, 64)
+	 show_image(wm.bg)
 
 	 -- asynch- load background and overwrite existing if found
 	 if (wm.cfg.background and resource(wm.cfg.background)) then
 			load_image_asynch(wm.cfg.background,
 												function(source, status)
 													 if (status.kind == "loaded") then
-															image_sharestorage(source, bg);
+															image_sharestorage(source, wm.bg)
 													 end
-													 delete_image(source);
-			end);
+													 delete_image(source)
+			end)
 	 end
 
 	 local add_cursor = function(name, hx, hy)
-			mouse_add_cursor(name, load_image("cursor/" ..name ..".png"), hx, hy, {});
+			mouse_add_cursor(name, load_image("cursor/" ..name ..".png"), hx, hy, {})
 	 end
-	 add_cursor("rz_diag_l", 0, 0);
-	 add_cursor("rz_diag_r", 0, 0);
-	 add_cursor("rz_down", 0, 0);
-	 add_cursor("rz_left", 0, 0);
-	 add_cursor("rz_right", 0, 0);
-	 add_cursor("rz_up", 0, 0);
-	 add_cursor("hide", 0, 0);
-	 add_cursor("grabhint", 0, 0);
-	 add_cursor("drag", 0, 0);
-	 add_cursor("destroy", 6, 7);
-	 add_cursor("new", 8, 6);
-	 add_cursor("default", 0, 0);
+	 add_cursor("rz_diag_l", 0, 0)
+	 add_cursor("rz_diag_r", 0, 0)
+	 add_cursor("rz_down", 0, 0)
+	 add_cursor("rz_left", 0, 0)
+	 add_cursor("rz_right", 0, 0)
+	 add_cursor("rz_up", 0, 0)
+	 add_cursor("hide", 0, 0)
+	 add_cursor("grabhint", 0, 0)
+	 add_cursor("drag", 0, 0)
+	 add_cursor("destroy", 6, 7)
+	 add_cursor("new", 8, 6)
+	 add_cursor("default", 0, 0)
 
-	 -- so "over" events don't switch cursor when we're in a special mode
-	 local orig_mouse_sw = mouse_switch_cursor;
-	 mouse_switch_cursor = function(img)
-			if (not priostate) then
-				 orig_mouse_sw(img);
-			end
-	 end
-
-	 wm.sym:load_keymap(wm.cfg.keymap);
+	 wm.sym:load_keymap(wm.cfg.keymap)
 
 	 -- try mouse- grab (if wanted)
-	 mouse_setup(BADID, 65535, 1, true, false);
-	 mouse_cursor_sf(wm.cfg.mouse_cursor_scale, wm.cfg.mouse_cursor_scale);
-
-	 -- this is used when we're running in some kind of nested setting, like
-	 -- with the LWA or SDL input platforms
-	 if (wm.cfg.mouse_grab) then
-			toggle_mouse_grab(MOUSE_GRABON);
-	 end
+	 mouse_setup(BADID, 65535, 1, true, false)
+	 mouse_cursor_sf(wm.cfg.mouse_cursor_scale, wm.cfg.mouse_cursor_scale)
 
 	 -- rebuild config now that we have access to everything
-	 awm_update_density(VPPCM);
+	 awm_update_density(VPPCM)
 
 	 target_alloc(wm.cfg.conn_point, client_event_handler)
 end
 
 function system_message(str)
-	 local msg, linew, w, h = render_text({wm.cfg.menu_fontstr, str});
+	 local msg, linew, w, h = render_text({wm.cfg.menu_fontstr, str})
 	 if (valid_vid(last_msg)) then
-			delete_image(last_msg);
+			delete_image(last_msg)
 	 end
-	 last_msg = msg;
+	 last_msg = msg
 
 	 if (valid_vid(msg)) then
-			expire_image(msg, 50);
-			move_image(msg, 0, VRESH - h);
-			show_image(msg);
-			order_image(msg, 65535);
+			expire_image(msg, 50)
+			move_image(msg, 0, VRESH - h)
+			show_image(msg)
+			order_image(msg, 65535)
 	 end
 end
 
 if (DEBUGLEVEL > 1) then
-	 debug_message = system_message;
+	 debug_message = system_message
 else
 	 debug_message = function() end
 end
@@ -128,19 +109,19 @@ end
 -- two modes, one with normal forwarding etc. one with a region-select
 function awm_normal_input(iotbl)
 	 if (iotbl.mouse) then
-			mouse_iotbl_input(iotbl);
-			return;
+			mouse_iotbl_input(iotbl)
+			return
 
 			-- on keyboard input, apply translation and run any defined keybinding
 			-- for synthetic keyrepeat, the patch result would need to be cached and
 			-- propagated in the _clock_pulse.
 	 elseif (iotbl.translated) then
-			local a, b = wm.sym:patch(iotbl, true);
+			local _, b = wm.sym:patch(iotbl, true)
 
 			-- falling edge (release) gets its own suffix to allow binding something on
 			-- rising edge and something else on falling edge
 			if (not iotbl.active) then
-				 b = b .. "_f";
+				 b = b .. "_f"
 			end
 
 			-- slightly more difficult for dealing with C-X, C-W style choords where
@@ -148,65 +129,65 @@ function awm_normal_input(iotbl)
 			-- consumes it
 			if (iotbl.active and wm.sym.prefix and
 					not wm.sym:is_modifier(iotbl)) then
-				 b = wm.sym.prefix .. b;
-				 wm.sym.prefix = nil;
+				 b = wm.sym.prefix .. b
+				 wm.sym.prefix = nil
 			end
 
 			debug_message(string.format(
 											 "resolved symbol: %s, binding? %s, action? %s", b,
 											 priobindings[b] and priobindings[b] or "[missing]",
-											 (priobindings[b] and prioactions[priobindings[b]]) and "yes" or "no"));
+											 (priobindings[b] and prioactions[priobindings[b]]) and "yes" or "no"))
 
 			if (priobindings[b] and prioactions[priobindings[b]]) then
-				 prioactions[priobindings[b]]();
-				 return;
+				 prioactions[priobindings[b]]()
+				 return
 			end
 	 end
 
 	 -- we have a keyboard key without a binding OR a game/other device,
 	 -- forward normally if the window is connected to an external process
 	 if (priowin and valid_vid(priowin.target, TYPE_FRAMESERVER)) then
-			target_input(priowin.target, iotbl);
+			target_input(priowin.target, iotbl)
 	 end
 end
 
 -- mouse event handlers need a CLK in order to handle time- based
 -- events like hover.
 function awm_clock_pulse()
-	 mouse_tick(1);
+	 mouse_tick(1)
 end
 
 function awm_update_density(vppcm)
-	 VPPCM = vppcm;
-	 wm.cfg = system_load("config.lua")();
-	 local factor = vppcm / 28.3687;
-	 for k,v in ipairs({
+	 VPPCM = vppcm
+	 wm.cfg = system_load("config.lua")()
+	 local factor = vppcm / 28.3687
+	 for _,v in ipairs({
 				 "border_width"
 	 }) do
-			wm.cfg[v] = math.ceil(wm.cfg[v] * factor);
+			wm.cfg[v] = math.ceil(wm.cfg[v] * factor)
 	 end
 
 	 -- send to all windows that the density has potentially changed
 	 if (prio_iter_windows) then
 			for v in prio_iter_windows(false) do
-				 target_displayhint(v, 0, 0, TD_HINT_IGNORE, {ppcm = vppcm});
+				 target_displayhint(v, 0, 0, TD_HINT_IGNORE, {ppcm = vppcm})
 			end
 	 end
 
-	 mouse_cursor_sf(factor, factor);
+	 mouse_cursor_sf(factor, factor)
 end
 
 function VRES_AUTORES(w, h, vppcm, flags, source)
 	 if (vppcm > 0 and math.abs(vppcm - VPPCM) > 1) then
-			awm_update_density(vppcm);
+			awm_update_density(vppcm)
 	 end
 
 	 if (video_displaymodes(source, w, h)) then
-			resize_video_canvas(w, h);
-			resize_image(bg, w, h);
+			resize_video_canvas(w, h)
+			resize_image(wm.bg, w, h)
 			arrange()
 	 end
 
 end
 
-awm_input = awm_normal_input;
+awm_input = awm_normal_input

@@ -9,6 +9,7 @@ local hidden = {};
 local defevhs = {};
 
 local function cursor_handler(wnd, source, status)
+	 print("cursor: " .. status.kind)
 	 if (status.kind == "terminated") then
 			delete_image(source);
 			wnd.mouse_cursor = nil;
@@ -62,37 +63,19 @@ defevhs["ident"] =
 
 defevhs["segment_request"] =
 	 function(wnd, source, stat)
-			if (stat.segkind == "clipboard" and tab) then
-				 if (valid_vid(tab.clipboard_in)) then
-						delete_image(tab.clipboard_in);
-				 end
-				 tab.clipboard_in = accept_target(
-						function(src, stat)
-							 clipboard_handler(wnd, src, stat);
-				 end);
-				 link_image(tab.clipboard_in, wnd.anchor);
-
-				 -- a little complicated, some clients (like games) start with
-				 -- no cursor and might enable one as a custom subsegment
-			elseif (stat.segkind == "cursor") then
-				 local new = accept_target(
-						function(src, stat)
+			print("segment_request " .. stat.segkind)
+			if (stat.segkind == "cursor") then
+				 local new = accept_target(function(src, stat)
 							 cursor_handler(wnd, src, stat);
-						end
-				 );
+				 end);
 				 if (valid_vid(new)) then
-						link_image(new, wnd.anchor);
-						if (wnd.active_tab == tab) then
-							 wnd.mouse_cursor = new;
-							 local mx,my = mouse_xy();
-							 if (image_hit(wnd.canvas, mx, my)) then
-									wnd:over();
-							 end
-						end
-						tab.mouse_cursor = new;
+            link_image(new, wnd.anchor);
+            wnd.mouse_cursor = new;
+            local mx, my = mouse_xy();
+            if (image_hit(wnd.canvas, mx, my)) then
+							 wnd:over();
+            end
 				 end
-			else
-				 -- just reject
 			end
 	 end
 
@@ -127,7 +110,7 @@ local function setup_wnd(vid, aid, opts)
 	 return wnd
 end
 
-function prio_target_window(tgt, cfg, x, y, w, h, force, shader)
+function prio_target_window(tgt, cfg, x, y, w, h, force)
 	 launch_target(tgt, cfg, LAUNCH_INTERNAL,
 								 function(source, status)
 										if (status.kind == "preroll") then
@@ -181,7 +164,7 @@ function client_event_handler(source, status)
 
 			local wnd = setup_wnd(source, status.source_audio, proptbl);
 
-			table.insert(wm.tags[current_tag], wnd); -- Add window directly to tags
+			table.insert(wm.tags[wm.current_tag], wnd); -- Add window directly to tags
 
 			arrange() -- Call arrange after adding the window
 
@@ -194,7 +177,7 @@ function client_event_handler(source, status)
 	 end
 end
 
-function prio_terminal(x, y, w, h)
+function terminal()
 	 local arg = wm.cfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. wm.cfg.conn_point;
 
 	 launch_avfeed(arg, "terminal", function(source, status)
@@ -210,7 +193,7 @@ end
 
 function prio_windows_linear(hide_hidden)
 	 local res = {};
-	 for i,v in ipairs(wndlist) do
+	 for _,v in ipairs(wndlist) do
 			if (not hide_hidden or not hidden[v]) then
 				 table.insert(res, v);
 			end
@@ -257,11 +240,6 @@ local function resize_move(ctx, dx, dy, move, inx, iny)
 	 end
 	 local props = image_surface_properties(wnd.anchor);
 
-	 -- Skip resizing if move is 2 (top bar vertical resize)
-	 if (move == 2) then
-			return;
-	 end
-
 	 -- setup two accumulators
 	 if (not ctx.state) then
 			ctx.state = {dx, dy};
@@ -298,6 +276,8 @@ local function resize_move(ctx, dx, dy, move, inx, iny)
 
 	 if (move == 1) then
 			nx = nx + (wnd.width - neww);
+			ny = ny + (wnd.height - newh);
+	 elseif (move == 2) then
 			ny = ny + (wnd.height - newh);
 	 elseif (move == 3) then
 			nx = nx + (wnd.width - neww);
@@ -437,13 +417,12 @@ function decor_h_drag(ctx, vid, dx, dy)
 			else
 				 resize_move(ctx, dx, dy, 0, inx, iny);
 			end
-	 else
-			-- means the _over event didn't fire before drag, shouldn't happen
 	 end
 end
 
 local function decor_v_over(ctx, vid, x, y)
 	 if (ctx.wnd ~= priowin) then
+			ctx.wnd:select();
 			return;
 	 end
 
@@ -464,6 +443,7 @@ end
 
 local function decor_h_over(ctx, vid, x, y)
 	 if (ctx.wnd ~= priowin) then
+			ctx.wnd:select();
 			return;
 	 end
 
@@ -525,41 +505,55 @@ local function build_decorations(wnd, opts)
 
 	 if (not opts.no_mouse) then
 			wnd.decor_mh.r = {
-				 wnd = wnd, name = "decor_r", own = wnd.decor.r,
-				 ul_near = false, motion = decor_v_over, drag = decor_v_drag,
-				 click = decor_sel, drop = decor_drop,
+				 wnd = wnd,
+				 name = "decor_r",
+				 own = wnd.decor.r,
+				 ul_near = false,
+				 motion = decor_v_over,
+				 drag = decor_v_drag,
+				 click = decor_sel,
+				 drop = decor_drop,
 				 out = decor_reset
 			};
 			wnd.decor_mh.t = {
-				 wnd = wnd, name = "decor_t", own = wnd.decor.t,
-				 ul_near = true, motion = decor_h_over, drag = decor_h_drag,
-				 click = decor_sel, out = decor_reset,
+				 wnd = wnd,
+				 name = "decor_t",
+				 own = wnd.decor.t,
+				 ul_near = true,
+				 motion = decor_h_over,
+				 drag = decor_h_drag,
+				 click = decor_sel,
+				 out = decor_reset,
 				 drop = decor_drop
 			};
 			wnd.decor_mh.l = {
-				 wnd = wnd, name = "decor_l", own = wnd.decor.l,
-				 ul_near = true, motion = decor_v_over, drag = decor_v_drag,
-				 click = decor_sel, out = decor_reset,
+				 wnd = wnd,
+				 name = "decor_l",
+				 own = wnd.decor.l,
+				 ul_near = true,
+				 motion = decor_v_over,
+				 drag = decor_v_drag,
+				 click = decor_sel,
+				 out = decor_reset,
 				 drop = decor_drop
 			};
 			wnd.decor_mh.b = {
-				 wnd = wnd, name = "decor_b", own = wnd.decor.b,
-				 ul_near = false, motion = decor_h_over, drag = decor_h_drag,
-				 click = decor_sel, drop = decor_drop,
+				 wnd = wnd,
+				 name = "decor_b",
+				 own = wnd.decor.b,
+				 ul_near = false,
+				 motion = decor_h_over,
+				 drag = decor_h_drag,
+				 click = decor_sel,
+				 drop = decor_drop,
 				 out = decor_reset
 			};
 
-			for k, v in ipairs(dirtbl) do
+			for _ , v in ipairs(dirtbl) do
 				 mouse_addlistener(wnd.decor_mh[v], {
-															"drag", "click", "rclick", "drop", "motion", "out"
+															"drag", "hover", "click", "rclick", "drop", "motion", "out"
 				 });
 			end
-	 end
-
-	 if (opts.effect_hook) then
-			opts.effect_hook(wnd);
-	 elseif (wm.cfg.effect_hook) then
-			wm.cfg.effect_hook(wnd);
 	 end
 
 	 window_decor_resize(wnd, wnd.width, wnd.height);
@@ -633,236 +627,241 @@ local function find_nearest(bp_x, bp_y, dir)
 			end
 	 end
 
-	 table.sort(lst, function(a, b) return a.dist < b.dist; end);
-	 return lst;
+	 table.sort(lst, function(a, b) return a.dist < b.dist end)
+	 return lst
 end
 
 function prio_sel_nearest(wnd, dir)
-	 local props = image_surface_resolve_properties(wnd.canvas);
+	 local props = image_surface_resolve_properties(wnd.canvas)
 	 local lst = find_nearest(props.x + props.width * 0.5,
-														props.y + props.height * 0.5, dir);
+														props.y + props.height * 0.5, dir)
 	 if (lst[1]) then
-			lst[1].wnd:select();
+			lst[1].wnd:select()
 	 end
 end
 
 function window_select(wnd)
 	 if (priostate and priostate(wnd)) then
-			return;
+			return
 	 end
 
 	 if (priowin) then
 			if (priowin ~= wnd) then
-				 priowin:deselect();
+				 priowin:deselect()
 			else
-				 return true;
+				 return true
 			end
 	 end
 
-	 local oldi;
+	 local oldi
 	 for i,v in ipairs(wndlist) do
 			if (v == wnd) then
-				 oldi = i;
-				 table.remove(wndlist, i);
-				 break;
+				 oldi = i
+				 table.remove(wndlist, i)
+				 break
 			end
 	 end
-	 table.insert(wndlist, wnd);
+	 table.insert(wndlist, wnd)
 
-	 priowin = wnd;
+	 priowin = wnd
 	 if (valid_vid(wnd.target)) then
-			wnd.dispmask = (bit.band(wnd.dispmask, bit.bnot(TD_HINT_UNFOCUSED)));
-			target_displayhint(wnd.target, 0, 0, wnd.dispmask);
+			wnd.dispmask = (bit.band(wnd.dispmask, bit.bnot(TD_HINT_UNFOCUSED)))
+			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
 	 end
-	 wnd:border_color(unpack(wm.cfg.active_color));
-	 reorder_windows();
+	 wnd:border_color(unpack(wm.cfg.active_color))
+	 reorder_windows()
 
 	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "select", oldi);
+			v(wnd, "select", oldi)
 	 end
-	 return true;
+	 return true
 end
 
 local function window_deselect(wnd)
 	 if (valid_vid(wnd.target)) then
-			wnd.dispmask = bit.bor(wnd.dispmask, TD_HINT_UNFOCUSED);
-			target_displayhint(wnd.target, 0, 0, wnd.dispmask);
+			wnd.dispmask = bit.bor(wnd.dispmask, TD_HINT_UNFOCUSED)
+			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
 	 end
-	 wnd:border_color(unpack(wm.cfg.inactive_color));
+	 wnd:border_color(unpack(wm.cfg.inactive_color))
 	 if (priowin == wnd) then
-			priowin = nil;
+			priowin = nil
 	 end
 
 	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "deselect");
+			v(wnd, "deselect")
 	 end
 end
 
 local function window_lost(wnd, source)
-	 wnd:destroy();
+	 wnd:destroy()
 end
 
 local function window_hide(wnd)
 	 if (wnd.delete_protect) then
-			return;
+			return
 	 end
 
-	 wnd:deselect();
-	 hide_image(wnd.anchor);
+	 wnd:deselect()
+	 hide_image(wnd.anchor)
 	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "hide");
+			v(wnd, "hide")
 	 end
 
-	 table.insert(hidden, wnd);
-	 hidden[wnd] = true;
+	 table.insert(hidden, wnd)
+	 hidden[wnd] = true
 end
 
 local function window_show(wnd)
 	 for k,v in ipairs(hidden) do
 			if (v == wnd) then
-				 wnd:select();
-				 table.remove(hidden, k);
-				 hidden[wnd] = nil;
-				 show_image(wnd.anchor);
+				 wnd:select()
+				 table.remove(hidden, k)
+				 hidden[wnd] = nil
+				 show_image(wnd.anchor)
 				 for k,v in ipairs(wnd.event_hooks) do
-						v(wnd, "show");
+						v(wnd, "show")
 				 end
-				 return;
+				 return
 			end
 	 end
 end
 
 local function window_destroy(wnd)
-    local cp = image_surface_resolve_properties(wnd.canvas);
-    if (priowin == wnd) then
-        priowin = nil;
-    end
+	 local cp = image_surface_resolve_properties(wnd.canvas)
+	 if (priowin == wnd) then
+			priowin = nil
+	 end
 
-    local mx, my = mouse_xy();
-    if (image_hit(wnd.canvas, mx, my)) then
-        mouse_switch_cursor();
-        mouse_show();
-    end
+	 local mx, my = mouse_xy()
+	 if (image_hit(wnd.canvas, mx, my)) then
+			mouse_switch_cursor()
+			mouse_show()
+	 end
 
-    -- drop global tracking
-    for i = #wndlist, 1, -1 do
-        if (wndlist[i] == wnd) then
-            table.remove(wndlist, i);
-        end
-    end
+	 -- drop global tracking
+	 for i = #wndlist, 1, -1 do
+			if (wndlist[i] == wnd) then
+				 table.remove(wndlist, i)
+			end
+	 end
 
-    for k, v in pairs(priowindows) do
-        if (v == wnd) then
-            priowindows[k] = nil;
-        end
-    end
+	 for k, v in pairs(priowindows) do
+			if (v == wnd) then
+				 priowindows[k] = nil
+			end
+	 end
 
-    -- might come from an event on a hidden window
-    for k, v in ipairs(hidden) do
-        if (v == wnd) then
-            table.remove(hidden, k);
-            hidden[wnd] = nil;
-            break;
-        end
-    end
+	 -- might come from an event on a hidden window
+	 for k, v in ipairs(hidden) do
+			if (v == wnd) then
+				 table.remove(hidden, k)
+				 hidden[wnd] = nil
+				 break
+			end
+	 end
 
-    -- remove mouse handlers
-    for k, v in pairs(wnd.decor_mh) do
-        mouse_droplistener(v);
-    end
-    mouse_droplistener(wnd);
+	 -- remove mouse handlers
+	 for k, v in pairs(wnd.decor_mh) do
+			mouse_droplistener(v)
+	 end
+	 mouse_droplistener(wnd)
 
-    for k, v in ipairs(wnd.event_hooks) do
-        v(wnd, "destroy");
-    end
+	 for k, v in ipairs(wnd.event_hooks) do
+			v(wnd, "destroy")
+	 end
 
-    -- anchor will just cascade delete everything.
-    print("Deleting window anchor:", wnd.anchor) -- Debug
-    delete_image(wnd.anchor);
+	 -- anchor will just cascade delete everything.
+	 print("Deleting window anchor:", wnd.anchor) -- Debug
+	 delete_image(wnd.anchor)
 
-    -- but reset the table to identify any dangling refs.
-    for k, v in pairs(wnd) do
-        wnd[k] = nil;
-    end
-    wnd.dead = true;
+	 -- but reset the table to identify any dangling refs.
+	 for k, v in pairs(wnd) do
+			wnd[k] = nil
+	 end
+	 wnd.dead = true
 
-    -- find something else to select
-    if (not priowin) then
-        find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1);
-    end
+	 -- find something else to select
+	 if (not priowin) then
+			-- Select the next window in line
+			if #wndlist > 0 then
+				 wndlist[#wndlist]:select()
+			else
+				 find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1)
+			end
+	 end
 
-    -- Remove from tags list
-    local window_id = wnd.id -- Get the window ID
+	 -- Remove from tags list
+	 local window_id = wnd.id -- Get the window ID
 
-    for t, tag in pairs(wm.tags) do
-        for j, c in ipairs(tag) do
-            if c == wnd then
-                print("Removed window from tag:", t) -- Debug
-                table.remove(tag, j)
-                break
-            end
-        end
-    end
+	 for t, tag in pairs(wm.tags) do
+			for j, c in ipairs(tag) do
+				 if c == wnd then
+						print("Removed window from tag:", t) -- Debug
+						table.remove(tag, j)
+						break
+				 end
+			end
+	 end
 
-    -- Call arrange AFTER removing the wnd
-    arrange()
+	 -- Call arrange AFTER removing the wnd
+	 arrange()
 end
 
 local function window_move(wnd, x, y)
-	 move_image(wnd.anchor, x, y);
+	 move_image(wnd.anchor, x, y)
 end
 
 local function window_maximize(wnd, dir)
 	 -- revert
 	 if (wnd.maximized) then
-			wnd:move(wnd.maximized.x, wnd.maximized.y);
-			wnd:resize(wnd.maximized.w, wnd.maximized.h);
-			wnd.maximized = nil;
-			return;
+			wnd:move(wnd.maximized.x, wnd.maximized.y)
+			wnd:resize(wnd.maximized.w, wnd.maximized.h)
+			wnd.maximized = nil
+			return
 	 end
 
 	 -- let move/resize account for decorations
-	 local props = image_surface_resolve_properties(wnd.anchor);
+	 local props = image_surface_resolve_properties(wnd.anchor)
 	 wnd.maximized = {
 			x = props.x, y = props.y,
 			w = wnd.width, h = wnd.height
-	 };
-	 local pad_w = wnd.margin.l + wnd.margin.r;
-	 local pad_h = wnd.margin.t + wnd.margin.b;
+	 }
+	 local pad_w = wnd.margin.l + wnd.margin.r
+	 local pad_h = wnd.margin.t + wnd.margin.b
 	 if (dir == "f") then
-			wnd:resize(VRESW - pad_w, VRESH - pad_h);
-			wnd:move(wnd.margin.l, wnd.margin.t);
+			wnd:resize(VRESW - pad_w, VRESH - pad_h)
+			wnd:move(wnd.margin.l, wnd.margin.t)
 	 elseif (dir == "l") then
-			wnd:move(wnd.margin.l, wnd.margin.t);
-			wnd:resize(math.floor((0.5 * VRESW) - pad_w), VRESH - pad_h);
+			wnd:move(wnd.margin.l, wnd.margin.t)
+			wnd:resize(math.floor((0.5 * VRESW) - pad_w), VRESH - pad_h)
 	 elseif (dir == "r") then
-			wnd:resize(math.floor((0.5 * VRESW) - pad_w), VRESH - pad_h);
-			wnd:move(math.ceil(VRESW * 0.5)+ wnd.margin.l, wnd.margin.t);
+			wnd:resize(math.floor((0.5 * VRESW) - pad_w), VRESH - pad_h)
+			wnd:move(math.ceil(VRESW * 0.5)+ wnd.margin.l, wnd.margin.t)
 	 elseif (dir == "t") then
-			wnd:move(wnd.margin.l, wnd.margin.t);
-			wnd:resize(VRESW - pad_w, math.floor((0.5 * VRESH) - pad_h));
+			wnd:move(wnd.margin.l, wnd.margin.t)
+			wnd:resize(VRESW - pad_w, math.floor((0.5 * VRESH) - pad_h))
 	 elseif (dir == "b") then
-			wnd:resize(VRESW - pad_w, math.floor((0.5 * VRESH) - pad_h));
-			wnd:move(wnd.margin.l, math.ceil(VRESH * 0.5) + wnd.margin.t);
+			wnd:resize(VRESW - pad_w, math.floor((0.5 * VRESH) - pad_h))
+			wnd:move(wnd.margin.l, math.ceil(VRESH * 0.5) + wnd.margin.t)
 	 end
 end
 
 local function step_sz(wnd)
-	 local ssx = wnd.inertia and wnd.inertia[1] or wm.cfg.drag_resize_inertia;
-	 local ssy = wnd.inertia and wnd.inertia[2] or wm.cfg.drag_resize_inertia;
-	 return ssx, ssy;
+	 local ssx = wnd.inertia and wnd.inertia[1] or wm.cfg.drag_resize_inertia
+	 local ssy = wnd.inertia and wnd.inertia[2] or wm.cfg.drag_resize_inertia
+	 return ssx, ssy
 end
 
 local function window_step_move(wnd, steps, xd, yd)
-	 local sx, sy = step_sz(wnd);
-	 nudge_image(wnd.anchor, xd * sx, yd * sy);
+	 local sx, sy = step_sz(wnd)
+	 nudge_image(wnd.anchor, xd * sx, yd * sy)
 end
 
 local function window_step_sz(wnd, steps, xd, yd)
-	 local sx, sy = step_sz(wnd);
-	 local neww = wnd.width + steps * sx * xd;
-	 local newh = wnd.height + steps * sy * yd;
-	 wnd:resize(neww, newh);
+	 local sx, sy = step_sz(wnd)
+	 local neww = wnd.width + steps * sx * xd
+	 local newh = wnd.height + steps * sy * yd
+	 wnd:resize(neww, newh)
 end
 
 local function window_mousemotion(ctx, vid, x, y)
@@ -873,49 +872,53 @@ local function window_mousemotion(ctx, vid, x, y)
 			devid = 0,
 			subid = 0,
 			samples = {0}
-	 };
+	 }
 	 if (not valid_vid(ctx.target, TYPE_FRAMESERVER)) then
-			return;
+			return
 	 end
 
-	 local props = image_surface_resolve_properties(ctx.anchor);
-	 outm.samples[1] = x - props.x;
+	 local props = image_surface_resolve_properties(ctx.anchor)
+	 outm.samples[1] = x - props.x
 
 	 -- relative or absolute? for absolute, we need to scale
-	 target_input(ctx.target, outm);
-	 outm.samples[1] = y - props.y;
-	 outm.subid = 1;
-	 target_input(ctx.target, outm);
+	 target_input(ctx.target, outm)
+	 outm.samples[1] = y - props.y
+	 outm.subid = 1
+	 target_input(ctx.target, outm)
 end
 
 local function window_mousebutton(ctx, devid, ind, act)
 	 -- trick to avoid spurious "release" events being forwarded
 	 if (ctx == priowin) then
 			if (priowin.tab_cooldown) then
-				 priowin.tab_cooldown = nil;
-				 return;
+				 priowin.tab_cooldown = nil
+				 return
 			end
 	 else
 			if (act) then
-				 ctx:select();
+				 ctx:select()
 			end
-			return;
+			return
 	 end
 
 	 if (priostate and priostate(ctx)) then
-			return;
+			return
 	 end
 
 	 if (ctx.mouse_btns and ctx.mouse_btns[ind] ~= act) then
-			ctx.mouse_btns[ind] = act;
+			ctx.mouse_btns[ind] = act
 			if (valid_vid(ctx.target, TYPE_FRAMESERVER)) then
 				 target_input(ctx.target, {digital = true, mouse = true,
-																	 devid = 0, subid = ind, active = act});
+																	 devid = 0, subid = ind, active = act})
 			end
 	 end
 end
 
 local function window_mouseover(ctx)
+	 if (ctx.wnd and ctx.wnd ~= priowin) then -- Check if window exists and is not already focused
+			ctx.wnd:select(); -- Select the window on mouseover
+	 end
+
 	 if (ctx.mouse_cursor) then
 			mouse_custom_cursor(ctx.mouse_cursor);
 	 elseif (ctx.mouse_hidden) then
@@ -926,19 +929,19 @@ local function window_mouseover(ctx)
 end
 
 local function window_mouseout(ctx)
-	 mouse_show();
-	 mouse_switch_cursor();
+	 mouse_show()
+	 mouse_switch_cursor()
 
 	 if (not valid_vid(ctx.target, TYPE_FRAMESERVER)) then
-			return;
+			return
 	 end
 
 	 -- release any buttons that are held
 	 for i,v in pairs(ctx.mouse_btns) do
 			if (v) then
-				 ctx.mouse_btns[i] = false;
+				 ctx.mouse_btns[i] = false
 				 target_input(ctx.target,
-											{digital = true, mouse = true, devid = 0, subid = i, active = false});
+											{digital = true, mouse = true, devid = 0, subid = i, active = false})
 			end
 	 end
 end
@@ -946,19 +949,19 @@ end
 -- Return an iterator for iterating windows, windows-with-external
 -- connection
 function prio_iter_windows(external)
-	 local ctx = {};
+	 local ctx = {}
 
 	 for k,v in pairs(priowindows) do
 			if (not external or valid_vid(v.target, TYPE_FRAMESERVER)) then
-				 table.insert(ctx, k, v);
+				 table.insert(ctx, k, v)
 			end
 	 end
 
-	 local i = 0;
-	 local c = #ctx;
+	 local i = 0
+	 local c = #ctx
 	 return function()
-			i = i + 1;
-			return ctx[i];
+			i = i + 1
+			return ctx[i]
 	 end
 end
 
@@ -966,257 +969,259 @@ end
 local function window_paste(wnd, msg)
 	 if (not wnd.clipboard_out) then
 			if (not valid_vid(wnd.target, TYPE_FRAMESERVER)) then
-				 return;
+				 return
 			end
 			local tgt_clip = define_nulltarget(wnd.target,
 																				 function()
-			end);
+			end)
 			if (not valid_vid(tgt_clip)) then
-				 return;
+				 return
 			end
 
-			wnd.clipboard_out = tgt_clip;
+			wnd.clipboard_out = tgt_clip
 			if (wnd.active_tab) then
-				 wnd.active_tab.clipboard_out = tgt_clip;
-				 link_image(tgt_clip, wnd.active_tab.vid);
+				 wnd.active_tab.clipboard_out = tgt_clip
+				 link_image(tgt_clip, wnd.active_tab.vid)
 			else
-				 link_image(wnd.clipboard_out, wnd.anchor);
+				 link_image(wnd.clipboard_out, wnd.anchor)
 			end
 	 end
 
 	 -- slightly incorrect as target_input can come up short, the
 	 -- real option is to have a background timer and continously flush
 	 if (msg and string.len(msg) > 0) then
-			target_input(wnd.clipboard_out, msg);
+			target_input(wnd.clipboard_out, msg)
 	 end
 end
 
---window arrange functions
+-- ----------------------------------------------------
+-- window arrange functions
+-- ----------------------------------------------------
 
 function arrange()
-    local tag = wm.tags and wm.tags[current_tag] or {}
-    local n = #tag
+	 local tag = wm.tags and wm.tags[wm.current_tag] or {}
+	 local n = #tag
 
-    if n == 0 then return end
+	 if n == 0 then return end
 
-    if layout_mode == "monocle" then
-        arrange_monocle(tag)
-    elseif layout_mode == "middle_stack" then
-        arrange_master_middle_stack(tag)
-    elseif layout_mode == "grid" then
-        arrange_grid(tag)
-    else -- Default to the existing master/stack layout
-        arrange_master_stack(tag)
-    end
+	 if wm.cfg.layout_mode == "monocle" then
+			arrange_monocle(tag)
+	 elseif wm.cfg.layout_mode == "middle_stack" then
+			arrange_master_middle_stack(tag)
+	 elseif wm.cfg.layout_mode == "grid" then
+			arrange_grid(tag)
+	 else -- Default to the existing master/stack layout
+			arrange_master_stack(tag)
+	 end
 end
 
 function arrange_monocle(tag)
-    local gap = wm.cfg.window_gap or 5
-    local n = #tag
-    local statusbar_height = wm.cfg.statusbar_height or 20
-    local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local gap = wm.cfg.window_gap or 5
+	 local n = #tag
+	 local statusbar_height = wm.cfg.statusbar_height or 20
+	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
-    for i = 1, n do
-        local wnd = tag[i]
-        local pad_w = wnd.margin.l + wnd.margin.r
-        local pad_h = wnd.margin.t + wnd.margin.b
+	 for i = 1, n do
+			local wnd = tag[i]
+			local pad_w = wnd.margin.l + wnd.margin.r
+			local pad_h = wnd.margin.t + wnd.margin.b
 
-        local wnd_y = wnd.margin.t + gap / 2
-        if statusbar_position == "top" then
-            wnd_y = wnd_y + statusbar_height
-        end
+			local wnd_y = wnd.margin.t + gap / 2
+			if statusbar_position == "top" then
+				 wnd_y = wnd_y + statusbar_height
+			end
 
-        wnd:move(wnd.margin.l + gap / 2, wnd_y)
-        wnd:resize(VRESW - pad_w - gap, VRESH - statusbar_height - pad_h - gap)
-    end
+			wnd:move(wnd.margin.l + gap / 2, wnd_y)
+			wnd:resize(VRESW - pad_w - gap, VRESH - statusbar_height - pad_h - gap)
+	 end
 end
 
 function arrange_grid(tag)
-    local n = #tag
-    local gap = wm.cfg.window_gap or 5
-    local statusbar_height = wm.cfg.statusbar_height or 20
-    local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local n = #tag
+	 local gap = wm.cfg.window_gap or 5
+	 local statusbar_height = wm.cfg.statusbar_height or 20
+	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
-    local cols = math.ceil(math.sqrt(n))
-    local rows = math.ceil(n / cols)
+	 local cols = math.ceil(math.sqrt(n))
+	 local rows = math.ceil(n / cols)
 
-    local tile_width = VRESW / cols
-    local tile_height = (VRESH - statusbar_height) / rows
+	 local tile_width = VRESW / cols
+	 local tile_height = (VRESH - statusbar_height) / rows
 
-    local index = 1
-    for row = 1, rows do
-        for col = 1, cols do
-            if index <= n then
-                local wnd = tag[index]
-                local pad_w = wnd.margin.l + wnd.margin.r
-                local pad_h = wnd.margin.t + wnd.margin.b
+	 local index = 1
+	 for row = 1, rows do
+			for col = 1, cols do
+				 if index <= n then
+						local wnd = tag[index]
+						local pad_w = wnd.margin.l + wnd.margin.r
+						local pad_h = wnd.margin.t + wnd.margin.b
 
-                local x = (col - 1) * tile_width + wnd.margin.l + gap / 2
-                local y = (row - 1) * tile_height + wnd.margin.t + gap / 2
+						local x = (col - 1) * tile_width + wnd.margin.l + gap / 2
+						local y = (row - 1) * tile_height + wnd.margin.t + gap / 2
 
-                if statusbar_position == "top" then
-                    y = y + statusbar_height
-                end
+						if statusbar_position == "top" then
+							 y = y + statusbar_height
+						end
 
-                wnd:move(x, y)
-                wnd:resize(tile_width - pad_w - gap, tile_height - pad_h - gap)
+						wnd:move(x, y)
+						wnd:resize(tile_width - pad_w - gap, tile_height - pad_h - gap)
 
-                index = index + 1
-            end
-        end
-    end
+						index = index + 1
+				 end
+			end
+	 end
 end
 
 function arrange_master_middle_stack(tag)
-    local n = #tag
-    local statusbar_height = wm.cfg.statusbar_height or 20
-    local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local n = #tag
+	 local statusbar_height = wm.cfg.statusbar_height or 20
+	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
-    if n == 1 then
-        arrange_monocle(tag)
-        return
-    end
+	 if n == 1 then
+			arrange_monocle(tag)
+			return
+	 end
 
-    local master_area_w = VRESW * wm.cfg.master_ratio
-    local master_area_h = VRESH - statusbar_height
-    local stack_area_w = (VRESW - master_area_w) / 2
-    local stack_area_h = VRESH - statusbar_height
+	 local master_area_w = VRESW * wm.cfg.master_ratio
+	 local master_area_h = VRESH - statusbar_height
+	 local stack_area_w = (VRESW - master_area_w) / 2
+	 local stack_area_h = VRESH - statusbar_height
 
-    local gap = wm.cfg.window_gap or 5
+	 local gap = wm.cfg.window_gap or 5
 
-    -- Master window (n > 1)
-    local master = tag[1]
-    local pad_w = master.margin.l + master.margin.r
-    local pad_h = master.margin.t + master.margin.b
+	 -- Master window (n > 1)
+	 local master = tag[1]
+	 local pad_w = master.margin.l + master.margin.r
+	 local pad_h = master.margin.t + master.margin.b
 
-    local master_y = master.margin.t + gap / 2
-    if statusbar_position == "top" then
-        master_y = master_y + statusbar_height
-    end
+	 local master_y = master.margin.t + gap / 2
+	 if statusbar_position == "top" then
+			master_y = master_y + statusbar_height
+	 end
 
-    master:move((VRESW - master_area_w) / 2 + master.margin.l + gap / 2, master_y)
-    master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
+	 master:move((VRESW - master_area_w) / 2 + master.margin.l + gap / 2, master_y)
+	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
 
-    -- Stack windows (n > 1)
-    local left_stack = {}
-    local right_stack = {}
+	 -- Stack windows (n > 1)
+	 local left_stack = {}
+	 local right_stack = {}
 
-    for i = 2, n do
-        if i % 2 == 0 then
-            table.insert(left_stack, tag[i])
-        else
-            table.insert(right_stack, tag[i])
-        end
-    end
+	 for i = 2, n do
+			if i % 2 == 0 then
+				 table.insert(left_stack, tag[i])
+			else
+				 table.insert(right_stack, tag[i])
+			end
+	 end
 
-    local left_n = #left_stack
-    local right_n = #right_stack
+	 local left_n = #left_stack
+	 local right_n = #right_stack
 
-    local left_stack_h = (stack_area_h - (left_n - 1) * gap) / left_n
-    local right_stack_h = (stack_area_h - (right_n - 1) * gap) / right_n
+	 local left_stack_h = (stack_area_h - (left_n - 1) * gap) / left_n
+	 local right_stack_h = (stack_area_h - (right_n - 1) * gap) / right_n
 
-    -- Left Stack
-    for i, wnd in ipairs(left_stack) do
-        local pad_w = wnd.margin.l + wnd.margin.r
-        local pad_h = wnd.margin.t + wnd.margin.b
+	 -- Left Stack
+	 for i, wnd in ipairs(left_stack) do
+			local pad_w = wnd.margin.l + wnd.margin.r
+			local pad_h = wnd.margin.t + wnd.margin.b
 
-        local wnd_y = (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
-        if statusbar_position == "top" then
-            wnd_y = wnd_y + statusbar_height
-        end
+			local wnd_y = (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
+			if statusbar_position == "top" then
+				 wnd_y = wnd_y + statusbar_height
+			end
 
-        wnd:move(wnd.margin.l + gap / 2, wnd_y)
-        wnd:resize(stack_area_w - pad_w - gap, left_stack_h - pad_h - gap)
-    end
+			wnd:move(wnd.margin.l + gap / 2, wnd_y)
+			wnd:resize(stack_area_w - pad_w - gap, left_stack_h - pad_h - gap)
+	 end
 
-    -- Right Stack
-    for i, wnd in ipairs(right_stack) do
-        local pad_w = wnd.margin.l + wnd.margin.r
-        local pad_h = wnd.margin.t + wnd.margin.b
+	 -- Right Stack
+	 for i, wnd in ipairs(right_stack) do
+			local pad_w = wnd.margin.l + wnd.margin.r
+			local pad_h = wnd.margin.t + wnd.margin.b
 
-        local wnd_y = (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
-        if statusbar_position == "top" then
-            wnd_y = wnd_y + statusbar_height
-        end
+			local wnd_y = (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
+			if statusbar_position == "top" then
+				 wnd_y = wnd_y + statusbar_height
+			end
 
-        wnd:move(VRESW - stack_area_w + wnd.margin.l + gap / 2, wnd_y)
-        wnd:resize(stack_area_w - pad_w - gap, right_stack_h - pad_h - gap)
-    end
+			wnd:move(VRESW - stack_area_w + wnd.margin.l + gap / 2, wnd_y)
+			wnd:resize(stack_area_w - pad_w - gap, right_stack_h - pad_h - gap)
+	 end
 end
 
 function arrange_master_stack(tag)
-    local n = #tag
-    local statusbar_height = wm.cfg.statusbar_height or 20
-    local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local n = #tag
+	 local statusbar_height = wm.cfg.statusbar_height or 20
+	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
-    if n == 1 then
-        arrange_monocle(tag)
-        return
-    end
+	 if n == 1 then
+			arrange_monocle(tag)
+			return
+	 end
 
-    local master_area_w = VRESW * wm.cfg.master_ratio
-    local master_area_h = VRESH - statusbar_height
-    local stack_area_x = master_area_w
-    local stack_area_w = VRESW - master_area_w
-    local stack_area_h = VRESH - statusbar_height
+	 local master_area_w = VRESW * wm.cfg.master_ratio
+	 local master_area_h = VRESH - statusbar_height
+	 local stack_area_x = master_area_w
+	 local stack_area_w = VRESW - master_area_w
+	 local stack_area_h = VRESH - statusbar_height
 
-    local gap = wm.cfg.window_gap or 5
+	 local gap = wm.cfg.window_gap or 5
 
-    -- Master window (n > 1)
-    local master = tag[1]
-    local pad_w = master.margin.l + master.margin.r
-    local pad_h = master.margin.t + master.margin.b
+	 -- Master window (n > 1)
+	 local master = tag[1]
+	 local pad_w = master.margin.l + master.margin.r
+	 local pad_h = master.margin.t + master.margin.b
 
-    local master_y = master.margin.t + gap / 2
-    if statusbar_position == "top" then
-        master_y = master_y + statusbar_height
-    end
+	 local master_y = master.margin.t + gap / 2
+	 if statusbar_position == "top" then
+			master_y = master_y + statusbar_height
+	 end
 
-    master:move(master.margin.l + gap / 2, master_y)
-    master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
+	 master:move(master.margin.l + gap / 2, master_y)
+	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
 
-    -- Stack windows (n > 1)
-    local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
-    for i = 2, n do
-        local wnd = tag[i]
-        local pad_w = wnd.margin.l + wnd.margin.r
-        local pad_h = wnd.margin.t + wnd.margin.b
+	 -- Stack windows (n > 1)
+	 local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
+	 for i = 2, n do
+			local wnd = tag[i]
+			local pad_w = wnd.margin.l + wnd.margin.r
+			local pad_h = wnd.margin.t + wnd.margin.b
 
-        local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap
-        if statusbar_position == "top" then
-            wnd_y = wnd_y + statusbar_height
-        end
+			local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap
+			if statusbar_position == "top" then
+				 wnd_y = wnd_y + statusbar_height
+			end
 
-        wnd:move(stack_area_x + wnd.margin.l + gap / 2, wnd_y)
-        wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)
-    end
+			wnd:move(stack_area_x + wnd.margin.l + gap / 2, wnd_y)
+			wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)
+	 end
 end
 
 function set_layout_mode(mode)
-    layout_mode = mode
-    arrange() -- Re-arrange windows after changing layout
+	 wm.cfg.layout_mode = mode
+	 arrange() -- Re-arrange windows after changing layout
 end
 
 function prio_new_window(vid, aid, opts)
-	 assert(opts and opts.x and opts.y and opts.w and opts.h);
+	 assert(opts and opts.x and opts.y and opts.w and opts.h)
 
 	 -- create anchor to track and control position and ordering
-	 local anchor = null_surface(opts.w, opts.h);
+	 local anchor = null_surface(opts.w, opts.h)
 	 if (not valid_vid(anchor)) then
-			return;
+			return
 	 end
 
-	 blend_image(anchor, 1.0, wm.cfg.animation_speed);
-	 move_image(anchor, opts.x, opts.y);
-	 link_image(vid, anchor);
-	 image_inherit_order(vid, true);
-	 image_mask_set(anchor, MASK_UNPICKABLE);
+	 blend_image(anchor, 1.0, wm.cfg.animation_speed)
+	 move_image(anchor, opts.x, opts.y)
+	 link_image(vid, anchor)
+	 image_inherit_order(vid, true)
+	 image_mask_set(anchor, MASK_UNPICKABLE)
 
 	 -- fade in and resize
-	 show_image(vid);
-	 resize_image(vid, opts.w, opts.h);
+	 show_image(vid)
+	 resize_image(vid, opts.w, opts.h)
 
-	 window_id_counter = window_id_counter + 1; -- Increment the counter
+	 window_id_counter = window_id_counter + 1 -- Increment the counter
 	 local wnd = {
 			id = window_id_counter, -- Assign the current counter value as the ID
 			name = "prio_window",
@@ -1273,35 +1278,32 @@ function prio_new_window(vid, aid, opts)
 			force_size = opts.force_size,
 			autocrop = opts.autocrop,
 			flip_y = opts.flip_y,
-
-			-- tiling functions
-			arrange = arrange,
-	 };
+	 }
 
 	 if (not opts.no_decor) then
-			build_decorations(wnd, opts);
+			build_decorations(wnd, opts)
 	 end
 
 	 if (not opts.no_mouse) then
-			mouse_addlistener(wnd, {"motion", "button", "over", "out"});
+			mouse_addlistener(wnd, {"motion", "button", "over", "out"})
 	 end
 
 	 -- special treatment, vid might be a color target (popups, ...)
 	 if (valid_vid(vid, TYPE_FRAMESERVER)) then
-			local canvas = null_surface(opts.w, opts.h);
-			link_image(canvas, wnd.anchor);
-			image_inherit_order(canvas, true);
-			show_image(canvas);
-			image_sharestorage(vid, canvas);
-			order_image(canvas, 1);
-			wnd.own = canvas;
-			wnd.canvas = canvas;
-			wnd.target = vid;
+			local canvas = null_surface(opts.w, opts.h)
+			link_image(canvas, wnd.anchor)
+			image_inherit_order(canvas, true)
+			show_image(canvas)
+			image_sharestorage(vid, canvas)
+			order_image(canvas, 1)
+			wnd.own = canvas
+			wnd.canvas = canvas
+			wnd.target = vid
 	 end
 
-	 table.insert(wndlist, wnd);
+	 table.insert(wndlist, wnd)
 
 	 -- index by supplied vid for event handlers
-	 priowindows[vid] = wnd;
+	 priowindows[vid] = wnd
 	 return wnd
 end

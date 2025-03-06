@@ -1,4 +1,7 @@
 return {
+
+	 layout_mode = "master_stack", -- monocle, grid, master_stack, middle_stack
+
 	 num_tags = 2; -- Number of workspaces/tags
 	 master_ratio = 0.6; -- Ratio of master window size
 
@@ -15,7 +18,6 @@ return {
 	 repeat_delay = 300, -- delay before feature is enabled
 
 	 -- mouse control
-	 mouse_grab = false,
 	 mouse_cursor_scale = 1.0,
 	 mouse_input_scale_x = 1.0,
 	 mouse_input_scale_y = 1.0,

@@ -10,8 +10,8 @@ local function wrun(fun)
 end
 
 actions.terminal = function()
-	 local tag = wm.tags and wm.tags[current_tag] or {} -- Get the current tag's windows
-	 create_terminal(0, 0, 0, 0)
+	 local tag = wm.tags and wm.tags[wm.current_tag] or {} -- Get the current tag's windows
+	 terminal()
 end
 
 actions.shutdown = function()
@@ -23,7 +23,7 @@ actions.reset = function()
 end
 
 local function view_tag(tag_number, wnd)
-	 current_tag = tag_number;
+	 wm.current_tag = tag_number;
 
 	 -- Create a snapshot of the target tag's windows
 	 local target_tag_windows = {};
@@ -91,102 +91,102 @@ actions.grow_w   = wrun(function(wnd) wnd:step_sz(1, 1, 0); end);
 
 actions.move_up    = wrun(function(wnd) wnd:step_move(1, 0,-1); end);
 actions.move_down  = wrun(function(wnd) wnd:step_move(1, 0, 1); end);
-actions.move_left  = wrun(function(wnd) wnd:step_move(1,-1, 0); end);
-actions.move_right = wrun(function(wnd) wnd:step_move(1, 1, 0); end);
+actions.move_left  = wrun(function(wnd) wnd:step_move(1,-1, 0) end)
+actions.move_right = wrun(function(wnd) wnd:step_move(1, 1, 0) end)
 
-actions.toggle_maximize = wrun(function(wnd) wnd:maximize("f"); end);
-actions.assign_top      = wrun(function(wnd) wnd:maximize("t"); end);
-actions.assign_bottom   = wrun(function(wnd) wnd:maximize("b"); end);
-actions.assign_left     = wrun(function(wnd) wnd:maximize("l"); end);
-actions.assign_right    = wrun(function(wnd) wnd:maximize("r"); end);
+actions.toggle_maximize = wrun(function(wnd) wnd:maximize("f") end)
+actions.assign_top      = wrun(function(wnd) wnd:maximize("t") end)
+actions.assign_bottom   = wrun(function(wnd) wnd:maximize("b") end)
+actions.assign_left     = wrun(function(wnd) wnd:maximize("l") end)
+actions.assign_right    = wrun(function(wnd) wnd:maximize("r") end)
 
 actions.set_temp_prefix_1 = function() wm.sym.prefix = "t1_" end
 
-actions.hide = wrun(function(wnd) wnd:hide(); end);
+actions.hide = wrun(function(wnd) wnd:hide() end)
 actions.copy = wrun(function(wnd)
 			if (wnd.clipboard_msg) then
-				 prioclip = wnd.clipboard_msg;
+				 prioclip = wnd.clipboard_msg
 			end
-end);
+end)
 actions.paste = wrun(function(wnd)
-			wnd:paste(CLIPBOARD_MESSAGE);
-end);
+			wnd:paste(CLIPBOARD_MESSAGE)
+end)
 
 -- Layout cycling
-local layout_modes = {"monocle", "grid", "master_stack", "middle_stack"};
-local current_layout_index = 1;
+local layout_modes = {"monocle", "grid", "master_stack", "middle_stack"}
+local current_layout_index = 1
 
 actions.cycle_layout = function()
-    current_layout_index = (current_layout_index % #layout_modes) + 1;
-    local next_layout = layout_modes[current_layout_index];
-    set_layout_mode(next_layout);
-    print("Layout changed to: " .. next_layout);
+    current_layout_index = (current_layout_index % #layout_modes) + 1
+    local next_layout = layout_modes[current_layout_index]
+    set_layout_mode(next_layout)
+    print("Layout changed to: " .. next_layout)
 end
 
 -- Function to rotate through the window stack (positive direction) within the current tag
 actions.rotate_window_stack = function()
-    local current_tag_windows = wm.tags[current_tag];
+    local current_tag_windows = wm.tags[wm.current_tag]
 
     if not current_tag_windows or #current_tag_windows <= 1 then
-        return; -- No windows in the current tag or only one window
+        return -- No windows in the current tag or only one window
     end
 
-    local current_index = nil;
+    local current_index = nil
     for i, wnd in ipairs(current_tag_windows) do
         if (wnd == priowin) then
-            current_index = i;
-            break;
+            current_index = i
+            break
         end
     end
 
     if (current_index == nil) then
-        return; -- Current window not found in the current tag
+        return -- Current window not found in the current tag
     end
 
-    local next_index = (current_index % #current_tag_windows) + 1;
-    local next_window = current_tag_windows[next_index];
+    local next_index = (current_index % #current_tag_windows) + 1
+    local next_window = current_tag_windows[next_index]
 
     if (next_window) then
-        window_select(next_window);
+        window_select(next_window)
     end
 end
 
 -- Function to rotate through the window stack (negative direction) within the current tag
 actions.rotate_window_stack_negative = function()
-    local current_tag_windows = wm.tags[current_tag];
+    local current_tag_windows = wm.tags[wm.current_tag]
 
     if not current_tag_windows or #current_tag_windows <= 1 then
-        return; -- No windows in the current tag or only one window
+        return -- No windows in the current tag or only one window
     end
 
-    local current_index = nil;
+    local current_index = nil
     for i, wnd in ipairs(current_tag_windows) do
         if (wnd == priowin) then
-            current_index = i;
-            break;
+            current_index = i
+            break
         end
     end
 
     if (current_index == nil) then
-        return; -- Current window not found in the current tag
+        return -- Current window not found in the current tag
     end
 
-    local prev_index = current_index - 1;
+    local prev_index = current_index - 1
     if (prev_index < 1) then
-        prev_index = #current_tag_windows;
+        prev_index = #current_tag_windows
     end
 
-    local prev_window = current_tag_windows[prev_index];
+    local prev_window = current_tag_windows[prev_index]
 
     if (prev_window) then
-        window_select(prev_window);
+        window_select(prev_window)
     end
 end
 
 local previous_selected_window = nil -- Global variable to store the previously selected window
 
 actions.swap_master = function()
-    local tag = wm.tags and wm.tags[current_tag] or {}
+    local tag = wm.tags and wm.tags[wm.current_tag] or {}
     local n = #tag
 
     if n <= 1 then
@@ -231,7 +231,7 @@ actions.swap_master = function()
     end
 
     -- Update the previous selected window before swapping
-    previous_selected_window = master;
+    previous_selected_window = master
 
     -- Swap the windows in the tag table
     tag[master_index], tag[selected_index] = tag[selected_index], tag[master_index]
@@ -256,4 +256,4 @@ end
 
 actions["terminal"] = actions.terminal
 
-return actions;
+return actions

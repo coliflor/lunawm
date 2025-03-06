@@ -8,6 +8,19 @@ local hidden = {};
 -- ----------------------------------------------------
 local defevhs = {};
 
+local function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
 local function cursor_handler(wnd, source, status)
 	 print("cursor: " .. status.kind)
 	 if (status.kind == "terminated") then
@@ -126,19 +139,6 @@ function prio_target_window(tgt, cfg, x, y, w, h, force)
 	 );
 end
 
-local function dump(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
-end
-
 function client_event_handler(source, status)
 
 	 print("client_event_handler called:")
@@ -172,7 +172,6 @@ function client_event_handler(source, status)
 			send_type_data(source, "terminal");
 
 			wnd:select();
-			wnd.listen_key = key;
 	 elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 end
 end
@@ -865,6 +864,12 @@ local function window_step_sz(wnd, steps, xd, yd)
 end
 
 local function window_mousemotion(ctx, vid, x, y)
+
+   if (ctx.drag_data) then
+			window_drag_move(ctx, x, y);
+			return; -- Prevent further processing
+	 end
+
 	 local outm = {
 			kind = "analog",
 			mouse = true,
@@ -887,6 +892,29 @@ local function window_mousemotion(ctx, vid, x, y)
 	 target_input(ctx.target, outm)
 end
 
+local function window_drag_start(wnd, x, y)
+	 if (not wnd.drag_data) then
+			wnd.drag_data = {
+				 start_x = x,
+				 start_y = y,
+				 wnd_x = image_surface_resolve_properties(wnd.anchor).x,
+				 wnd_y = image_surface_resolve_properties(wnd.anchor).y
+			};
+	 end
+end
+
+function window_drag_move(wnd, x, y)
+	 if (wnd.drag_data) then
+			local dx = x - wnd.drag_data.start_x;
+			local dy = y - wnd.drag_data.start_y;
+			wnd:move(wnd.drag_data.wnd_x + dx, wnd.drag_data.wnd_y + dy);
+	 end
+end
+
+local function window_drag_end(wnd)
+	 wnd.drag_data = nil;
+end
+
 local function window_mousebutton(ctx, devid, ind, act)
 	 -- trick to avoid spurious "release" events being forwarded
 	 if (ctx == priowin) then
@@ -903,6 +931,16 @@ local function window_mousebutton(ctx, devid, ind, act)
 
 	 if (priostate and priostate(ctx)) then
 			return
+	 end
+
+	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
+			window_drag_start(ctx, mouse_xy());
+			return; -- Prevent further processing
+	 end
+
+	 if (not act and ind == 1 and ctx.drag_data) then
+			window_drag_end(ctx);
+			return; -- Prevent further processing
 	 end
 
 	 if (ctx.mouse_btns and ctx.mouse_btns[ind] ~= act) then

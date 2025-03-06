@@ -42,10 +42,19 @@ return {
 	 [M1 .. "v"] = "clipboard_paste",
 
 	 -- Example keybindings
-	 [M2 .. "1"] = "view_tag_1",  -- Switch to tag 1
-	 [M2 .. "2"] = "view_tag_2",  -- Switch to tag 2
-	 [M2 .. "q"] = "destroy_active_window", -- Close window
-	 [M2 .. "z"]  = "drag_window", -- Drag Window
+	 [M2 .. "q"] = "view_tag_1",
+	 [M2 .. "w"] = "view_tag_2",
+	 [M2 .. "e"] = "view_tag_3",
+	 [M2 .. "r"] = "view_tag_4",
+	 [M2 .. "t"] = "view_tag_5",
+
+	 [M2 .. "1"] = "assign_tag_1",
+	 [M2 .. "2"] = "assign_tag_2",
+	 [M2 .. "3"] = "assign_tag_3",
+	 [M2 .. "4"] = "assign_tag_4",
+	 [M2 .. "5"] = "assign_tag_5",
+
+	 [M2 .. "p"] = "destroy_active_window", -- Close window
 
 	 [M2 .. "y"] = "cycle_layout",
 	 [M2 .. "k"] = "rotate_window_stack",
@@ -53,4 +62,7 @@ return {
 	 [M2 .. "l"] = "decrease_master_width",
 	 [M2 .. "h"] = "increase_master_width",
 	 [M2 .. "z"] = "swap_master",
+
+	 [M2 .. "b"] = "swap_child_windows",
+	 [M2 .. "v"] = "swap_child_windows_negative",
 };

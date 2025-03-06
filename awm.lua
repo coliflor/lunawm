@@ -7,12 +7,17 @@ wm = {
 	 -- Tiling-specific data
 	 tags = {},  --(workspaces)
 	 current_tag = 1, -- Currently active tag
+
+	 -- Global variable to track mod key state
+	 mod_key_pressed = false
 }
 
 priowindows = {};
 prioactions = {};
 priovariables = {};
 CLIPBOARD_MESSAGE = "";
+
+
 
 function awm()
 
@@ -106,6 +111,11 @@ else
 	 debug_message = function() end
 end
 
+-- Function to set the mod key state
+local function set_mod_key_state(active)
+    wm.mod_key_pressed = active
+end
+
 -- two modes, one with normal forwarding etc. one with a region-select
 function awm_normal_input(iotbl)
 	 if (iotbl.mouse) then
@@ -122,6 +132,11 @@ function awm_normal_input(iotbl)
 			-- rising edge and something else on falling edge
 			if (not iotbl.active) then
 				 b = b .. "_f"
+			end
+
+			-- Check if it's a mod key and update the global state
+			if (wm.sym:is_modifier(iotbl)) then
+				 set_mod_key_state(iotbl.active) -- Update global mod key state
 			end
 
 			-- slightly more difficult for dealing with C-X, C-W style choords where

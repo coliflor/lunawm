@@ -1,12 +1,12 @@
-local dirtbl = {"l", "r", "t", "b"};
-local window_id_counter = 0; -- Initialize a counter for window IDs
-local wndlist = {};
-local hidden = {};
+local dirtbl = {"l", "r", "t", "b"}
+local window_id_counter = 0 -- Initialize a counter for window IDs
+local wndlist = {}
+local hidden = {}
 
 -- ----------------------------------------------------
 --  helper functions for window spawn
 -- ----------------------------------------------------
-local defevhs = {};
+local defevhs = {}
 
 local function dump(o)
    if type(o) == 'table' then
@@ -24,11 +24,11 @@ end
 local function cursor_handler(wnd, source, status)
 	 print("cursor: " .. status.kind)
 	 if (status.kind == "terminated") then
-			delete_image(source);
-			wnd.mouse_cursor = nil;
-			local mx, my = mouse_xy();
+			delete_image(source)
+			wnd.mouse_cursor = nil
+			local mx, my = mouse_xy()
 			if (image_hit(wnd.canvas, mx, my)) then
-				 wnd:over();
+				 wnd:over()
 			end
 	 end
 end
@@ -36,37 +36,40 @@ end
 local function clipboard_handler(wnd, source, status)
 	 if (status.kind == "message") then
 			if (not wnd.multipart) then
-				 wnd.multipart = {};
+				 wnd.multipart = {}
 			end
-			table.insert(wnd.multipart, status.message);
+			table.insert(wnd.multipart, status.message)
 			if (not status.multipart) then
-				 wnd.clipboard_message = table.concat(wnd.multipart, "");
-				 CLIPBOARD_MESSAGE = wnd.clipboard_message;
-				 wnd.multipart = {};
+				 wnd.clipboard_message = table.concat(wnd.multipart, "")
+				 CLIPBOARD_MESSAGE = wnd.clipboard_message
+				 wnd.multipart = {}
 			end
 	 elseif (status.kind == "terminated") then
-			delete_image(source);
+			delete_image(source)
 	 end
 end
 
-defevhs["resized"] =
-	 function(wnd, source, status)
-			wnd.flip_y = status.origo_ll;
+defevhs["resized"] = function(wnd, source, status)
+	 wnd.flip_y = status.origo_ll
 
-			if (wnd.target == source) then
-				 wnd.aid = source_audio;
-				 if (wnd.force_size) then
-						wnd:resize(wnd.width, wnd.height);
-				 else
-						wnd:resize(status.width, status.height, true);
+	 if (wnd.target == source) then
+			wnd.aid = source_audio
+			if (wnd.force_size) then
+				 -- Use tag-specific dimensions if available, otherwise use global wnd.width and wnd.height
+				 local current_tag = wm.current_tag
+				 if wnd.tags[current_tag] then
+						wnd:resize(wnd.tags[current_tag].width, wnd.tags[current_tag].height)
 				 end
-				 wnd:update_tprops();
+			else
+				 wnd:resize(status.width, status.height, true)
 			end
+			wnd:update_tprops()
 	 end
+end
 
 defevhs["terminated"] =
 	 function(wnd, source, status)
-			wnd:lost(source);
+			wnd:lost(source)
 	 end
 
 defevhs["ident"] =
@@ -79,47 +82,47 @@ defevhs["segment_request"] =
 			print("segment_request " .. stat.segkind)
 			if (stat.segkind == "cursor") then
 				 local new = accept_target(function(src, stat)
-							 cursor_handler(wnd, src, stat);
-				 end);
+							 cursor_handler(wnd, src, stat)
+				 end)
 				 if (valid_vid(new)) then
-            link_image(new, wnd.anchor);
-            wnd.mouse_cursor = new;
-            local mx, my = mouse_xy();
+            link_image(new, wnd.anchor)
+            wnd.mouse_cursor = new
+            local mx, my = mouse_xy()
             if (image_hit(wnd.canvas, mx, my)) then
-							 wnd:over();
+							 wnd:over()
             end
 				 end
 			end
 	 end
 
 function prio_group_handler(source, status)
-	 local wnd = priowindows[source];
+	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
-			defevhs[status.kind](wnd, source, status);
+			defevhs[status.kind](wnd, source, status)
 	 end
 end
 
 local function send_type_data(source, segkind)
-	 local dstfont_sz = wm.cfg.default_font_sz;
-	 local dstfont = wm.cfg.default_font;
+	 local dstfont_sz = wm.cfg.default_font_sz
+	 local dstfont = wm.cfg.default_font
 
 	 if (segkind == "terminal" or segkind == "tui") then
-			dstfont = wm.cfg.terminal_font;
-			dstfont_sz = wm.cfg.terminal_font_sz;
+			dstfont = wm.cfg.terminal_font
+			dstfont_sz = wm.cfg.terminal_font_sz
 	 end
 
 	 for i,v in ipairs(dstfont) do
-			target_fonthint(source, v, dstfont_sz, wm.cfg.terminal_hint, i > 1);
+			target_fonthint(source, v, dstfont_sz, wm.cfg.terminal_hint, i > 1)
 	 end
 end
 
 local function setup_wnd(vid, aid, opts)
 	 if (not valid_vid(vid, TYPE_FRAMESERVER)) then
-			return;
+			return
 	 end
 
 	 local wnd = prio_new_window(vid, aid, opts) -- Get the window object returned by prio_new_window
-	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}); -- Pass the anchor
+	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}) -- Pass the anchor
 	 return wnd
 end
 
@@ -129,14 +132,14 @@ function prio_target_window(tgt, cfg, x, y, w, h, force)
 										if (status.kind == "preroll") then
 											 local wnd = setup_wnd(source, status.source_audio,
 																						 {x = x, y = y, w = w, h = h,
-																							force_size = force});
-											 target_updatehandler(source, prio_group_handler);
+																							force_size = force})
+											 target_updatehandler(source, prio_group_handler)
 											 if (wnd) then
-													wnd:select();
+													wnd:select()
 											 end
 										end
 								 end
-	 );
+	 )
 end
 
 function client_event_handler(source, status)
@@ -160,69 +163,79 @@ function client_event_handler(source, status)
 				 h = 32,
 				 force_size = wm.cfg.force_size,
 				 autocrop = true,
-			};
+			}
 
-			local wnd = setup_wnd(source, status.source_audio, proptbl);
+			local wnd = setup_wnd(source, status.source_audio, proptbl)
 
-			table.insert(wm.tags[wm.current_tag], wnd); -- Add window directly to tags
+			table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
 
 			arrange() -- Call arrange after adding the window
 
-			target_updatehandler(source, prio_group_handler);
-			send_type_data(source, "terminal");
+			target_updatehandler(source, prio_group_handler)
+			send_type_data(source, "terminal")
 
-			wnd:select();
+			wnd:select()
 	 elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 end
 end
 
 function terminal()
-	 local arg = wm.cfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. wm.cfg.conn_point;
+	 local arg = wm.cfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. wm.cfg.conn_point
 
 	 launch_avfeed(arg, "terminal", function(source, status)
 										if (status.kind == "preroll") then
-											 client_event_handler(source, status);
+											 client_event_handler(source, status)
 										end
-	 end);
+	 end)
 end
 
 -- ----------------------------------------------------
 -- Window Managment
 -- ----------------------------------------------------
 
+local function get_first_tag_with_data(wnd)
+	 for tag,_ in pairs(wnd.tags) do
+			if wnd.tags[tag] and wnd.tags[tag].width then
+				 return tag
+			end
+	 end
+	 return nil
+end
+
 function prio_windows_linear(hide_hidden)
-	 local res = {};
+	 local res = {}
 	 for _,v in ipairs(wndlist) do
 			if (not hide_hidden or not hidden[v]) then
-				 table.insert(res, v);
+				 table.insert(res, v)
 			end
 	 end
 
-	 return res;
+	 return res
 end
 
 function reorder_windows()
 	 for i,v in ipairs(wndlist) do
-			order_image(v.anchor, (i+1) * 10);
+			order_image(v.anchor, (i+1) * 10)
 	 end
 end
 
 local function window_decor_resize(wnd, neww, newh)
-	 local bw = wm.cfg.border_width;
-	 if (not wnd.decor.l) then return; end
-	 resize_image(wnd.decor.l, bw, newh);
-	 resize_image(wnd.decor.r, bw, newh);
-	 resize_image(wnd.decor.t, neww + bw + bw, bw);
-	 resize_image(wnd.decor.b, neww + bw + bw, bw);
-	 move_image(wnd.decor.l, -bw, 0);
-	 move_image(wnd.decor.b, -bw, 0);
-	 move_image(wnd.decor.t, -bw, -bw);
+	 local bw = wm.cfg.border_width
+
+	 if (not wnd.decor.l) then return end
+	 resize_image(wnd.decor.l, bw, newh)
+	 resize_image(wnd.decor.r, bw, newh)
+	 resize_image(wnd.decor.t, neww + bw + bw, bw)
+	 resize_image(wnd.decor.b, neww + bw + bw, bw)
+	 move_image(wnd.decor.l, -bw, 0)
+	 move_image(wnd.decor.b, -bw, 0)
+	 move_image(wnd.decor.t, -bw, -bw)
 end
 
 local function window_bordercolor(wnd, r, g, b)
 	 for i,v in ipairs(dirtbl) do
-			if (not wnd.decor[v]) then return; end
-			image_color(wnd.decor[v], r, g, b);
+			if (not wnd.decor[v]) then return end
+			image_color(wnd.decor[v], r, g, b)
 	 end
 end
 
@@ -233,96 +246,111 @@ end
 -- 6  7  8
 --
 local function resize_move(ctx, dx, dy, move, inx, iny)
-	 local wnd = ctx.wnd;
+	 local wnd = ctx.wnd
 	 if (not wnd.anchor) then
-			return;
+			return
 	 end
-	 local props = image_surface_properties(wnd.anchor);
+	 local props = image_surface_properties(wnd.anchor)
 
 	 -- setup two accumulators
 	 if (not ctx.state) then
-			ctx.state = {dx, dy};
+			ctx.state = {dx, dy}
 	 else
-			ctx.state[1] = ctx.state[1] + dx;
-			ctx.state[2] = ctx.state[2] + dy;
+			ctx.state[1] = ctx.state[1] + dx
+			ctx.state[2] = ctx.state[2] + dy
 	 end
 
-	 local rzx = 0;
-	 local rzy = 0;
+	 local rzx = 0
+	 local rzy = 0
 
 	 -- if the absolute accumulation exceeds inertia, resize that many steps
 	 if (math.abs(ctx.state[1]) >= inx) then
-			rzx = math.floor(ctx.state[1] / inx);
-			ctx.state[1] = ctx.state[1] - (rzx * inx);
+			rzx = math.floor(ctx.state[1] / inx)
+			ctx.state[1] = ctx.state[1] - (rzx * inx)
 	 end
 
 	 if (math.abs(ctx.state[2]) >= iny) then
-			rzy = math.floor(ctx.state[2] / iny);
-			ctx.state[2] = ctx.state[2] - (rzy * iny);
+			rzy = math.floor(ctx.state[2] / iny)
+			ctx.state[2] = ctx.state[2] - (rzy * iny)
 	 end
 
-	 local neww = wnd.width + rzx * inx;
-	 local newh = wnd.height + rzy * iny;
-	 neww = neww < wnd.min_w and wnd.min_w or neww;
-	 newh = newh < wnd.min_h and wnd.min_h or newh;
+	 local current_tag = wm.current_tag
+	 local tag_data = wnd.tags[current_tag]
 
-	 if (neww == wnd.width and newh == wnd.height) then
-			return;
+	 if (not tag_data) then
+			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
 	 end
 
-	 local nx = props.x;
-	 local ny = props.y;
+	 local neww = tag_data.width + rzx * inx
+	 local newh = tag_data.height + rzy * iny
+	 neww = neww < wnd.min_w and wnd.min_w or neww
+	 newh = newh < wnd.min_h and wnd.min_h or newh
+
+	 if (neww == tag_data.width and newh == tag_data.height) then
+			return
+	 end
+
+	 local nx = props.x
+	 local ny = props.y
 
 	 if (move == 1) then
-			nx = nx + (wnd.width - neww);
-			ny = ny + (wnd.height - newh);
+			nx = nx + (tag_data.width - neww)
+			ny = ny + (tag_data.height - newh)
 	 elseif (move == 2) then
-			ny = ny + (wnd.height - newh);
+			ny = ny + (tag_data.height - newh)
 	 elseif (move == 3) then
-			nx = nx + (wnd.width - neww);
+			nx = nx + (tag_data.width - neww)
 	 elseif (move == 4) then
-			ny = ny + (wnd.height - newh);
+			ny = ny + (tag_data.height - newh)
 	 end
 
 	 -- this will look "jittery" if target is slow to resize or we
 	 -- don't autocrop
 	 if (wnd.autocrop or wnd.force_size or not
 			 valid_vid(wnd.target, TYPE_FRAMESERVER)) then
-			wnd:resize(neww, newh);
-			move_image(wnd.anchor, nx, ny);
+			wnd:resize(neww, newh)
+			move_image(wnd.anchor, nx, ny)
 	 else
-			target_displayhint(wnd.target, neww, newh);
-			wnd.defer_x = nx;
-			wnd.defer_y = ny;
+			target_displayhint(wnd.target, neww, newh)
+			wnd.defer_x = nx
+			wnd.defer_y = ny
 	 end
 end
 
 local function window_update_tprops(wnd)
-	 image_set_txcos_default(wnd.canvas, wnd.flip_y);
+	 image_set_txcos_default(wnd.canvas, wnd.flip_y)
 
 	 if (wnd.autocrop) then
-			local ip = image_storage_properties(wnd.canvas);
+			local ip = image_storage_properties(wnd.canvas)
+
+			local current_tag = wm.current_tag
+			local tag_data = wnd.tags[current_tag]
+
+			if (not tag_data) then
+				 tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+			end
+
 			image_scale_txcos(wnd.canvas,
-												wnd.width / ip.width, wnd.height / ip.height);
+												tag_data.width / ip.width, tag_data.height / ip.height)
 	 end
 end
 
 -- assumption: cursor is on [vid]
 function set_trigger_point(ctx, vid)
 	 if (ctx.wnd.drag_track) then
-			return;
+			return
 	 end
 
 	 -- track the drag- point so we can warp the mouse on regions
 	 -- with high drag- inertia or delayed synch
-	 local props = image_surface_resolve_properties(vid);
-	 local mx,my = mouse_xy();
-	 local rel_x = (mx - props.x) / props.width;
-	 local rel_y = (my - props.y) / props.height;
-	 rel_x = rel_x < 0 and 0 or rel_x;
-	 rel_x = rel_x > 1 and 1 or rel_x;
-	 rel_y = rel_y < 0 and 0 or rel_y;
-	 rel_y = rel_y > 1 and 1 or rel_y;
+	 local props = image_surface_resolve_properties(vid)
+	 local mx,my = mouse_xy()
+	 local rel_x = (mx - props.x) / props.width
+	 local rel_y = (my - props.y) / props.height
+	 rel_x = rel_x < 0 and 0 or rel_x
+	 rel_x = rel_x > 1 and 1 or rel_x
+	 rel_y = rel_y < 0 and 0 or rel_y
+	 rel_y = rel_y > 1 and 1 or rel_y
 
 	 ctx.wnd.drag_track = {
 			vid = vid,
@@ -330,42 +358,42 @@ function set_trigger_point(ctx, vid)
 			start_y = my,
 			rel_x = rel_x,
 			rel_y = rel_y
-	 };
+	 }
 end
 
 function decor_v_drag(ctx, vid, dx, dy)
 	 if (ctx.wnd ~= priowin) then
-			return;
+			return
 	 end
 
-	 local inx = wm.cfg.drag_resize_inertia;
-	 local iny = wm.cfg.drag_resize_inertia;
-	 set_trigger_point(ctx, vid);
+	 local inx = wm.cfg.drag_resize_inertia
+	 local iny = wm.cfg.drag_resize_inertia
+	 set_trigger_point(ctx, vid)
 
-	 ctx.wnd:select();
+	 ctx.wnd:select()
 	 if (ctx.wnd.inertia) then
-			inx = ctx.wnd.inertia[1];
-			iny = ctx.wnd.inertia[2];
+			inx = ctx.wnd.inertia[1]
+			iny = ctx.wnd.inertia[2]
 	 end
 
-	 local uln = ctx.ul_near;
+	 local uln = ctx.ul_near
 	 if (ctx.diag == -1) then
 			if (uln) then
-				 resize_move(ctx, -dx, -dy, 1, inx, iny);
+				 resize_move(ctx, -dx, -dy, 1, inx, iny)
 			else
-				 resize_move(ctx, dx,  -dy, 4, inx, iny);
+				 resize_move(ctx, dx,  -dy, 4, inx, iny)
 			end
 	 elseif (ctx.diag == 0) then
 			if (uln) then
-				 resize_move(ctx, -dx, 0, 3, inx, iny);
+				 resize_move(ctx, -dx, 0, 3, inx, iny)
 			else
-				 resize_move(ctx,  dx, 0, 0, inx, iny);
+				 resize_move(ctx,  dx, 0, 0, inx, iny)
 			end
 	 elseif (ctx.diag == 1) then
 			if (uln) then
-				 resize_move(ctx, -dx, dy, 3, inx, iny);
+				 resize_move(ctx, -dx, dy, 3, inx, iny)
 			else
-				 resize_move(ctx, dx, dy, 0, inx, iny);
+				 resize_move(ctx, dx, dy, 0, inx, iny)
 			end
 	 else
 			-- means the _over event didn't fire before drag, shouldn't happen
@@ -373,134 +401,158 @@ function decor_v_drag(ctx, vid, dx, dy)
 end
 
 local function decor_drop(ctx)
-	 ctx.state = nil;
+	 ctx.state = nil
 	 if (ctx.wnd.drag_track) then
 			if (valid_vid(ctx.wnd.drag_track.hint)) then
-				 delete_image(ctx.wnd.drag_track.hint);
+				 delete_image(ctx.wnd.drag_track.hint)
 			end
-			ctx.wnd.drag_track = nil;
+			ctx.wnd.drag_track = nil
 	 end
 end
 
 function decor_h_drag(ctx, vid, dx, dy)
 	 if (ctx.wnd ~= priowin) then
-			return;
+			return
 	 end
 
 	 -- cases: 1,2,3 - 6,7,8
-	 local inx = wm.cfg.drag_resize_inertia;
-	 local iny = wm.cfg.drag_resize_inertia;
-	 set_trigger_point(ctx, vid);
-	 ctx.wnd:select();
+	 local inx = wm.cfg.drag_resize_inertia
+	 local iny = wm.cfg.drag_resize_inertia
+	 set_trigger_point(ctx, vid)
+	 ctx.wnd:select()
 	 if (ctx.wnd.inertia) then
-			inx = ctx.wnd.inertia[1];
-			iny = ctx.wnd.inertia[2];
+			inx = ctx.wnd.inertia[1]
+			iny = ctx.wnd.inertia[2]
 	 end
 
-	 local uln = ctx.ul_near;
+	 local uln = ctx.ul_near
 	 if (ctx.diag == -1) then
 			if (ctx.ul_near) then
-				 resize_move(ctx, -dx, -dy, 1, inx, iny);
+				 resize_move(ctx, -dx, -dy, 1, inx, iny)
 			else
-				 resize_move(ctx, -dx,  dy, 3, inx, iny);
+				 resize_move(ctx, -dx,  dy, 3, inx, iny)
 			end
 	 elseif (ctx.diag == 0) then
 			if (uln) then
-				 resize_move(ctx, 0,-dy, 2, inx, iny);
+				 resize_move(ctx, 0,-dy, 2, inx, iny)
 			else
-				 resize_move(ctx, 0, dy, 0, inx, iny);
+				 resize_move(ctx, 0, dy, 0, inx, iny)
 			end
 	 elseif (ctx.diag == 1) then
 			if (uln) then
-				 resize_move(ctx, dx, -dy, 4, inx, iny);
+				 resize_move(ctx, dx, -dy, 4, inx, iny)
 			else
-				 resize_move(ctx, dx, dy, 0, inx, iny);
+				 resize_move(ctx, dx, dy, 0, inx, iny)
 			end
 	 end
 end
 
 local function decor_v_over(ctx, vid, x, y)
 	 if (ctx.wnd ~= priowin) then
-			ctx.wnd:select();
-			return;
+			ctx.wnd:select()
+			return
 	 end
 
-	 local props = image_surface_resolve_properties(vid);
-	 local ly = y - props.y;
-	 local margin = props.height * 0.1;
+	 local props = image_surface_resolve_properties(vid)
+	 local ly = y - props.y
+	 local margin = props.height * 0.1
 	 if (ly < margin) then
-			ctx.diag = -1;
-			mouse_switch_cursor(ctx.ul_near and "rz_diag_r" or "rz_diag_l");
+			ctx.diag = -1
+			mouse_switch_cursor(ctx.ul_near and "rz_diag_r" or "rz_diag_l")
 	 elseif (ly > props.height - margin) then
-			ctx.diag = 1;
-			mouse_switch_cursor(ctx.ul_near and "rz_diag_l" or "rz_diag_r");
+			ctx.diag = 1
+			mouse_switch_cursor(ctx.ul_near and "rz_diag_l" or "rz_diag_r")
 	 else
-			ctx.diag = 0;
-			mouse_switch_cursor(ctx.ul_near and "rz_left" or "rz_right");
+			ctx.diag = 0
+			mouse_switch_cursor(ctx.ul_near and "rz_left" or "rz_right")
 	 end
 end
 
 local function decor_h_over(ctx, vid, x, y)
 	 if (ctx.wnd ~= priowin) then
-			ctx.wnd:select();
-			return;
+			ctx.wnd:select()
+			return
 	 end
 
-	 local props = image_surface_resolve_properties(vid);
-	 local lx = x - props.x;
-	 local margin = props.width * 0.1;
+	 local props = image_surface_resolve_properties(vid)
+	 local lx = x - props.x
+	 local margin = props.width * 0.1
 	 if (lx < margin) then
-			ctx.diag = -1;
-			mouse_switch_cursor(ctx.ul_near and "rz_diag_r" or "rz_diag_l");
+			ctx.diag = -1
+			mouse_switch_cursor(ctx.ul_near and "rz_diag_r" or "rz_diag_l")
 	 elseif (lx > props.width - margin) then
-			mouse_switch_cursor(ctx.ul_near and "rz_diag_l" or "rz_diag_r");
-			ctx.diag = 1;
+			mouse_switch_cursor(ctx.ul_near and "rz_diag_l" or "rz_diag_r")
+			ctx.diag = 1
 	 else
-			ctx.diag = 0;
-			mouse_switch_cursor(ctx.ul_near and "rz_up" or "rz_down");
+			ctx.diag = 0
+			mouse_switch_cursor(ctx.ul_near and "rz_up" or "rz_down")
 	 end
 end
 
 local function get_maximize_dir()
-	 local x, y = mouse_xy();
+	 local x, y = mouse_xy()
 	 if (x <= 5) then
-			return "l";
+			return "l"
 	 end
 	 if (x >= VRESW-5) then
-			return "r";
+			return "r"
 	 end
 	 if (y <= 5) then
-			return "t";
+			return "t"
 	 end
 	 if (y >= VRESH-5) then
-			return "b";
+			return "b"
 	 end
 end
 
 local function decor_sel(ctx)
-	 ctx.wnd:select();
+	 ctx.wnd:select()
 end
 
 local function decor_reset()
-	 mouse_switch_cursor();
+	 mouse_switch_cursor()
 end
 
 -- build the decorations: tttt
 --                        l  r
 --                        bbbb and anchor for easier resize
 local function build_decorations(wnd, opts)
-	 local bw = wm.cfg.border_width;
-	 for k, v in ipairs(dirtbl) do
-			wnd.decor[v] = color_surface(1, 1, 0, 0, 0);
-			image_inherit_order(wnd.decor[v], true);
-			blend_image(wnd.decor[v], wm.cfg.border_alpha);
-			wnd.margin[v] = bw;
+	 local bw = wm.cfg.border_width
+
+	 if bw == 0 then
+			-- Remove old decorations
+			if wnd.decor then
+				 for _, decor in pairs(wnd.decor) do
+						if valid_vid(decor) then
+							 delete_image(decor)
+						end
+				 end
+				 wnd.decor = {}
+			end
+
+			-- Resize the window to its original size (without borders)
+			if wnd.tag_dimensions and wnd.tag_dimensions[wm.current_tag] then
+				 local dims = wnd.tag_dimensions[wm.current_tag]
+				 wnd:resize(dims.width - wnd.margin.l - wnd.margin.r, dims.height - wnd.margin.t - wnd.margin.b)
+			end
+
+			-- Update margin values
+			wnd.margin = { t = 0, l = 0, r = 0, b = 0 }
+
+			return
 	 end
 
-	 link_image(wnd.decor.r, wnd.anchor, ANCHOR_UR);
-	 link_image(wnd.decor.l, wnd.anchor, ANCHOR_UL);
-	 link_image(wnd.decor.b, wnd.anchor, ANCHOR_LL);
-	 link_image(wnd.decor.t, wnd.anchor);
+	 for k, v in ipairs(dirtbl) do
+			wnd.decor[v] = color_surface(1, 1, 0, 0, 0)
+			image_inherit_order(wnd.decor[v], true)
+			blend_image(wnd.decor[v], wm.cfg.border_alpha)
+			wnd.margin[v] = bw
+	 end
+
+	 link_image(wnd.decor.r, wnd.anchor, ANCHOR_UR)
+	 link_image(wnd.decor.l, wnd.anchor, ANCHOR_UL)
+	 link_image(wnd.decor.b, wnd.anchor, ANCHOR_LL)
+	 link_image(wnd.decor.t, wnd.anchor)
 
 	 if (not opts.no_mouse) then
 			wnd.decor_mh.r = {
@@ -513,7 +565,7 @@ local function build_decorations(wnd, opts)
 				 click = decor_sel,
 				 drop = decor_drop,
 				 out = decor_reset
-			};
+			}
 			wnd.decor_mh.t = {
 				 wnd = wnd,
 				 name = "decor_t",
@@ -524,7 +576,7 @@ local function build_decorations(wnd, opts)
 				 click = decor_sel,
 				 out = decor_reset,
 				 drop = decor_drop
-			};
+			}
 			wnd.decor_mh.l = {
 				 wnd = wnd,
 				 name = "decor_l",
@@ -535,7 +587,7 @@ local function build_decorations(wnd, opts)
 				 click = decor_sel,
 				 out = decor_reset,
 				 drop = decor_drop
-			};
+			}
 			wnd.decor_mh.b = {
 				 wnd = wnd,
 				 name = "decor_b",
@@ -546,83 +598,115 @@ local function build_decorations(wnd, opts)
 				 click = decor_sel,
 				 drop = decor_drop,
 				 out = decor_reset
-			};
+			}
 
 			for _ , v in ipairs(dirtbl) do
 				 mouse_addlistener(wnd.decor_mh[v], {
 															"drag", "hover", "click", "rclick", "drop", "motion", "out"
-				 });
+				 })
 			end
 	 end
 
-	 window_decor_resize(wnd, wnd.width, wnd.height);
+	 local current_tag = wm.current_tag
+	 local tag_data = wnd.tags[current_tag]
+
+	 if (not tag_data) then
+			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+	 end
+
+	 window_decor_resize(wnd, tag_data.width, tag_data.height)
+end
+
+function rebuild_all_decorations()
+	 for _, wnd in ipairs(wndlist) do
+			-- Assuming 'opts' is available or can be reconstructed
+			build_decorations(wnd, { no_decor = true })
+	 end
 end
 
 local function window_resize(wnd, neww, newh, nofwd)
-	 local pad_v = wnd.margin.t - wnd.margin.b;
-	 local pad_h = wnd.margin.l - wnd.margin.r;
-	 neww = (neww > VRESW - pad_h) and (VRESW - pad_h) or neww;
-	 newh = (newh > VRESH - pad_v) and (VRESH - pad_v) or newh;
+	 local pad_v = wnd.margin.t - wnd.margin.b
+	 local pad_h = wnd.margin.l - wnd.margin.r
+	 neww = (neww > VRESW - pad_h) and (VRESW - pad_h) or neww
+	 newh = (newh > VRESH - pad_v) and (VRESH - pad_v) or newh
 
-	 resize_image(wnd.canvas, neww, newh);
-	 resize_image(wnd.anchor, neww, newh);
-	 window_decor_resize(wnd, neww, newh);
+	 resize_image(wnd.canvas, neww, newh)
+	 resize_image(wnd.anchor, neww, newh)
+	 window_decor_resize(wnd, neww, newh)
 
-	 if ((neww ~= wnd.width or newh ~= wnd.height)
+	 local current_tag = wm.current_tag
+	 local tag_data = wnd.tags[current_tag]
+
+	 if (not tag_data) then
+			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+	 end
+
+	 if ((neww ~= tag_data.width or newh ~= tag_data.height)
 			and not nofwd and valid_vid(wnd.target, TYPE_FRAMESERVER)) then
-			target_displayhint(wnd.target, neww, newh);
+			target_displayhint(wnd.target, neww, newh)
 	 end
 
 	 if (wnd.defer_x) then
-			move_image(wnd.anchor, wnd.defer_x, wnd.defer_y);
+			move_image(wnd.anchor, wnd.defer_x, wnd.defer_y)
 			if (wnd.drag_track and valid_vid(wnd.drag_track.vid)) then
-				 local props = image_surface_resolve_properties(wnd.drag_track.vid);
-				 wnd.drag_track.start_x = props.x + props.width * wnd.drag_track.rel_x;
-				 wnd.drag_track.start_y = props.y + props.height * wnd.drag_track.rel_y;
+				 local props = image_surface_resolve_properties(wnd.drag_track.vid)
+				 wnd.drag_track.start_x = props.x + props.width * wnd.drag_track.rel_x
+				 wnd.drag_track.start_y = props.y + props.height * wnd.drag_track.rel_y
 			end
-			wnd.defer_x = nil;
+			wnd.defer_x = nil
 	 end
 
 	 if (wnd.autocrop) then
-			local ip = image_storage_properties(wnd.canvas);
-			image_set_txcos_default(wnd.canvas, wnd.origio_ll);
-			image_scale_txcos(wnd.canvas, neww / ip.width, newh / ip.height);
+			local ip = image_storage_properties(wnd.canvas)
+			image_set_txcos_default(wnd.canvas, wnd.origio_ll)
+			image_scale_txcos(wnd.canvas, neww / ip.width, newh / ip.height)
 	 end
 
-	 wnd.width = neww;
-	 wnd.height = newh;
+	 -- Update tag-specific dimensions
+	 if wnd.tags[current_tag] then
+			wnd.tags[current_tag].width = neww
+			wnd.tags[current_tag].height = newh
+	 else
+			-- If tag data doesn't exist, create it
+			wnd.tags[current_tag] = {
+				 width = neww,
+				 height = newh,
+				 x = wnd.tags[get_first_tag_with_data(wnd)].x,
+				 y = wnd.tags[get_first_tag_with_data(wnd)].y,
+			}
+	 end
 
 	 for k,v in ipairs(wnd.event_hooks) do
-			v(wnd, "resize");
+			v(wnd, "resize")
 	 end
 end
 
 local function find_nearest(bp_x, bp_y, dir)
-	 local lst = {};
-	 for k,v in pairs(priowindows) do
-			local props = image_surface_resolve_properties(v.canvas);
-			local cx = bp_x - (props.x + 0.5 * props.width);
-			local cy = bp_y - (props.y + 0.5 * props.height);
-			local dist;
+	 local lst = {}
+	 for k,v in pairs(wm.windows) do
+			local props = image_surface_resolve_properties(v.canvas)
+			local cx = bp_x - (props.x + 0.5 * props.width)
+			local cy = bp_y - (props.y + 0.5 * props.height)
+			local dist
 			if (dir) then
 				 if (dir == "t" and cy > 0) then
-						table.insert(lst, {wnd = v, dist = cy});
+						table.insert(lst, {wnd = v, dist = cy})
 				 elseif (dir == "l" and cx > 0) then
-						table.insert(lst, {wnd = v, dist = cx});
+						table.insert(lst, {wnd = v, dist = cx})
 				 elseif (dir == "r" and cx < 0) then
-						table.insert(lst, {wnd = v, dist = -cx});
+						table.insert(lst, {wnd = v, dist = -cx})
 				 elseif (dir == "b" and cy < 0) then
-						table.insert(lst, {wnd = v, dist = -cy});
+						table.insert(lst, {wnd = v, dist = -cy})
 				 end
 			else
-				 local dist = math.sqrt(cx * cx + cy * cy);
-				 table.insert(lst, {wnd = v, dist = dist});
+				 local dist = math.sqrt(cx * cx + cy * cy)
+				 table.insert(lst, {wnd = v, dist = dist})
 			end
 	 end
 
 	 for i=#lst,1,-1 do
 			if (lst[i].wnd.select_block) then
-				 table.remove(lst, i);
+				 table.remove(lst, i)
 			end
 	 end
 
@@ -711,13 +795,24 @@ local function window_hide(wnd)
 end
 
 local function window_show(wnd)
-	 for k,v in ipairs(hidden) do
+	 for k, v in ipairs(hidden) do
 			if (v == wnd) then
 				 wnd:select()
+
+				 local current_tag = wm.current_tag
+				 local tag_data = wnd.tags[current_tag]
+
+				 if (not tag_data) then
+						tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+				 end
+
 				 table.remove(hidden, k)
 				 hidden[wnd] = nil
 				 show_image(wnd.anchor)
-				 for k,v in ipairs(wnd.event_hooks) do
+				 wnd:resize(tag_data.width, tag_data.height)
+				 wnd:move(tag_data.x, tag_data.y)
+
+				 for k, v in ipairs(wnd.event_hooks) do
 						v(wnd, "show")
 				 end
 				 return
@@ -744,9 +839,9 @@ local function window_destroy(wnd)
 			end
 	 end
 
-	 for k, v in pairs(priowindows) do
+	 for k, v in pairs(wm.windows) do
 			if (v == wnd) then
-				 priowindows[k] = nil
+				 wm.windows[k] = nil
 			end
 	 end
 
@@ -808,6 +903,21 @@ end
 
 local function window_move(wnd, x, y)
 	 move_image(wnd.anchor, x, y)
+
+	 -- Update tag-specific position
+	 local current_tag = wm.current_tag
+	 if wnd.tags[current_tag] then
+			wnd.tags[current_tag].x = x
+			wnd.tags[current_tag].y = y
+	 else
+			-- If tag data doesn't exist, create it.
+			wnd.tags[current_tag] = {
+				 x = x,
+				 y = y,
+				 width = wnd.tags[get_first_tag_with_data(wnd)].width,
+				 height = wnd.tags[get_first_tag_with_data(wnd)].height,
+			}
+	 end
 end
 
 local function window_maximize(wnd, dir)
@@ -821,9 +931,17 @@ local function window_maximize(wnd, dir)
 
 	 -- let move/resize account for decorations
 	 local props = image_surface_resolve_properties(wnd.anchor)
+
+	 local current_tag = wm.current_tag
+	 local tag_data = wnd.tags[current_tag]
+
+	 if (not tag_data) then
+			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+	 end
+
 	 wnd.maximized = {
 			x = props.x, y = props.y,
-			w = wnd.width, h = wnd.height
+			w = tag_data.width, h = tag_data.height
 	 }
 	 local pad_w = wnd.margin.l + wnd.margin.r
 	 local pad_h = wnd.margin.t + wnd.margin.b
@@ -858,16 +976,24 @@ end
 
 local function window_step_sz(wnd, steps, xd, yd)
 	 local sx, sy = step_sz(wnd)
-	 local neww = wnd.width + steps * sx * xd
-	 local newh = wnd.height + steps * sy * yd
+
+	 local current_tag = wm.current_tag
+	 local tag_data = wnd.tags[current_tag]
+
+	 if (not tag_data) then
+			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+	 end
+
+	 local neww = tag_data.width + steps * sx * xd
+	 local newh = tag_data.height + steps * sy * yd
 	 wnd:resize(neww, newh)
 end
 
 local function window_mousemotion(ctx, vid, x, y)
 
    if (ctx.drag_data) then
-			window_drag_move(ctx, x, y);
-			return; -- Prevent further processing
+			window_drag_move(ctx, x, y)
+			return -- Prevent further processing
 	 end
 
 	 local outm = {
@@ -899,20 +1025,20 @@ local function window_drag_start(wnd, x, y)
 				 start_y = y,
 				 wnd_x = image_surface_resolve_properties(wnd.anchor).x,
 				 wnd_y = image_surface_resolve_properties(wnd.anchor).y
-			};
+			}
 	 end
 end
 
 function window_drag_move(wnd, x, y)
 	 if (wnd.drag_data) then
-			local dx = x - wnd.drag_data.start_x;
-			local dy = y - wnd.drag_data.start_y;
-			wnd:move(wnd.drag_data.wnd_x + dx, wnd.drag_data.wnd_y + dy);
+			local dx = x - wnd.drag_data.start_x
+			local dy = y - wnd.drag_data.start_y
+			wnd:move(wnd.drag_data.wnd_x + dx, wnd.drag_data.wnd_y + dy)
 	 end
 end
 
 local function window_drag_end(wnd)
-	 wnd.drag_data = nil;
+	 wnd.drag_data = nil
 end
 
 local function window_mousebutton(ctx, devid, ind, act)
@@ -934,13 +1060,13 @@ local function window_mousebutton(ctx, devid, ind, act)
 	 end
 
 	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
-			window_drag_start(ctx, mouse_xy());
-			return; -- Prevent further processing
+			window_drag_start(ctx, mouse_xy())
+			return -- Prevent further processing
 	 end
 
 	 if (not act and ind == 1 and ctx.drag_data) then
-			window_drag_end(ctx);
-			return; -- Prevent further processing
+			window_drag_end(ctx)
+			return -- Prevent further processing
 	 end
 
 	 if (ctx.mouse_btns and ctx.mouse_btns[ind] ~= act) then
@@ -954,15 +1080,15 @@ end
 
 local function window_mouseover(ctx)
 	 if (ctx.wnd and ctx.wnd ~= priowin) then -- Check if window exists and is not already focused
-			ctx.wnd:select(); -- Select the window on mouseover
+			ctx.wnd:select() -- Select the window on mouseover
 	 end
 
 	 if (ctx.mouse_cursor) then
-			mouse_custom_cursor(ctx.mouse_cursor);
+			mouse_custom_cursor(ctx.mouse_cursor)
 	 elseif (ctx.mouse_hidden) then
-			mouse_hide();
+			mouse_hide()
 	 else
-			mouse_switch_cursor();
+			mouse_switch_cursor()
 	 end
 end
 
@@ -989,7 +1115,7 @@ end
 function prio_iter_windows(external)
 	 local ctx = {}
 
-	 for k,v in pairs(priowindows) do
+	 for k,v in pairs(wm.windows) do
 			if (not external or valid_vid(v.target, TYPE_FRAMESERVER)) then
 				 table.insert(ctx, k, v)
 			end
@@ -1002,7 +1128,6 @@ function prio_iter_windows(external)
 			return ctx[i]
 	 end
 end
-
 
 local function window_paste(wnd, msg)
 	 if (not wnd.clipboard_out) then
@@ -1305,7 +1430,6 @@ function prio_new_window(vid, aid, opts)
 			maximize = window_maximize,
 			update_tprops = window_update_tprops,
 			paste = window_paste,
-			display_changed = window_dispchg,
 
 			-- projectable toggles
 			delete_protect = opts.delete_protect,
@@ -1316,6 +1440,15 @@ function prio_new_window(vid, aid, opts)
 			force_size = opts.force_size,
 			autocrop = opts.autocrop,
 			flip_y = opts.flip_y,
+
+			tags = {},
+	 }
+
+	 wnd.tags[wm.current_tag] = {
+			width = opts.w,
+			height = opts.h,
+			x = opts.x,
+			y = opts.y,
 	 }
 
 	 if (not opts.no_decor) then
@@ -1342,6 +1475,6 @@ function prio_new_window(vid, aid, opts)
 	 table.insert(wndlist, wnd)
 
 	 -- index by supplied vid for event handlers
-	 priowindows[vid] = wnd
+	 wm.windows[vid] = wnd
 	 return wnd
 end

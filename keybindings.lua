@@ -12,9 +12,9 @@
 
 -- https://github.com/letoram/arcan/blob/master/data/scripts/builtin/keyboard.lua
 
-local M1 = "ralt_";
-local M2 = "lalt_";
-local M3 = "lalt_lctrl_";
+local M1 = "ralt_"
+local M2 = "lalt_"
+local M3 = "lalt_lctrl_"
 return {
 	 -- window positioning / sizing controls
 	 [M2 ..    "j"] = "select_up",
@@ -25,7 +25,6 @@ return {
 	 [M3 ..    "k"] = "move_down",
 	 [M3 ..    "h"] = "move_left",
 	 [M3 ..    "l"] = "move_right",
-	 [M3 ..    "m"] = "toggle_maximize",
 	 [M1 ..    "a"] = "shrink_h",
 	 [M1 ..    "s"] = "grow_h",
 	 [M1 ..    "d"] = "shrink_w",
@@ -38,15 +37,23 @@ return {
 	 -- others
 	 [M2 .. "m"] = "terminal",
 	 [M2 .. "ESCAPE"] = "shutdown",
-	 [M2 .. "TAB"] = "reset",
+	 [M3 .. "TAB"] = "reset",
 	 [M1 .. "v"] = "clipboard_paste",
 
-	 -- Example keybindings
+	 --
 	 [M2 .. "q"] = "view_tag_1",
 	 [M2 .. "w"] = "view_tag_2",
 	 [M2 .. "e"] = "view_tag_3",
 	 [M2 .. "r"] = "view_tag_4",
 	 [M2 .. "t"] = "view_tag_5",
+
+	 [M2 .. "TAB"] = "swap_last_current_tag",
+
+	 [M3 .. "q"] = "move_window_to_tag_1",
+	 [M3 .. "w"] = "move_window_to_tag_2",
+	 [M3 .. "e"] = "move_window_to_tag_3",
+	 [M3 .. "r"] = "move_window_to_tag_4",
+	 [M3 .. "t"] = "move_window_to_tag_5",
 
 	 [M2 .. "1"] = "assign_tag_1",
 	 [M2 .. "2"] = "assign_tag_2",
@@ -56,6 +63,7 @@ return {
 
 	 [M2 .. "p"] = "destroy_active_window", -- Close window
 
+	 [M2 .. "f"] = "toggle_maximize",
 	 [M2 .. "y"] = "cycle_layout",
 	 [M2 .. "k"] = "rotate_window_stack",
 	 [M2 .. "j"] = "rotate_window_stack_negative",
@@ -65,4 +73,6 @@ return {
 
 	 [M2 .. "b"] = "swap_child_windows",
 	 [M2 .. "v"] = "swap_child_windows_negative",
+
+	 [M2 .. "x"] = "fuse_all_tags",
 };

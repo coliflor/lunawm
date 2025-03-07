@@ -1,35 +1,36 @@
 wm = {
 	 sym = {},
 	 cfg = {},
+	 actions = {},
+	 bindings = {}, -- keybindings
+	 var = {}, -- variables
+
+	 windows = {},
 
 	 bg = nil, -- background
 
 	 -- Tiling-specific data
-	 tags = {},  --(workspaces)
+	 tags = {},  -- (workspaces)
 	 current_tag = 1, -- Currently active tag
+	 last_tag = 1,
 
 	 -- Global variable to track mod key state
 	 mod_key_pressed = false
 }
 
-priowindows = {};
-prioactions = {};
-priovariables = {};
 CLIPBOARD_MESSAGE = "";
-
-
 
 function awm()
 
 	 wm.sym = system_load("builtin/keyboard.lua")(); -- keyboard translation
 	 wm.cfg = system_load("config.lua")();
-	 priovariables =  system_load("variables.lua")()
+	 wm.var = system_load("variables.lua")()
 	 system_load("builtin/mouse.lua")() -- mouse gesture abstraction etc.
 	 system_load("timer.lua")()
 	 system_load("window.lua")() -- window creation
-	 prioactions = system_load("actions.lua")() -- bindable actions
+	 wm.actions = system_load("actions.lua")() -- bindable actions
 	 system_load("ipc.lua")()
-	 priobindings = system_load("keybindings.lua")() -- keysym+mods -> actions
+	 wm.bindings = system_load("keybindings.lua")() -- keysym+mods -> actions
 
 	 -- Initialize tags:
 	 for i = 1, wm.cfg.num_tags do
@@ -150,11 +151,11 @@ function awm_normal_input(iotbl)
 
 			debug_message(string.format(
 											 "resolved symbol: %s, binding? %s, action? %s", b,
-											 priobindings[b] and priobindings[b] or "[missing]",
-											 (priobindings[b] and prioactions[priobindings[b]]) and "yes" or "no"))
+											 wm.bindings[b] and wm.bindings[b] or "[missing]",
+											 (wm.bindings[b] and wm.actions[wm.bindings[b]]) and "yes" or "no"))
 
-			if (priobindings[b] and prioactions[priobindings[b]]) then
-				 prioactions[priobindings[b]]()
+			if (wm.bindings[b] and wm.actions[wm.bindings[b]]) then
+				 wm.actions[wm.bindings[b]]()
 				 return
 			end
 	 end

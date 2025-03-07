@@ -1,11 +1,11 @@
 -- prio IPC system (adapted from Durden)
--- echo "variable gaps 10" | socat - UNIX-CONNECT:./Proyectos/prio/prio/ipc/prio_control
+-- echo "variable gaps 10" | socat - UNIX-CONNECT:./Proyectos/awm/awm/ipc/awm_control
 
 local prio_ipc = {}
 local clients = {}
 local control_socket
 
-local control_path = "prio_control" -- Default control path
+local control_path = "awm_control" -- Default control path
 
 local function update_control()
 	 if (control_socket) then
@@ -34,7 +34,7 @@ end
 
 update_control() -- Initial control path setup
 
-function string.split(inputstr, sep)
+local function split(inputstr, sep)
 	 if sep == nil then
 			sep = "%s"
 	 end
@@ -47,12 +47,15 @@ end
 
 local commands = {
 	 variable = function(client, line, res, remainder)
-			local parts = string.split(remainder, " ")
-			if #parts == 2 then
+			local parts = split(remainder, " ")
+			if #parts >= 2 then
 				 local var_name = parts[1]
-				 local var_value = parts[2]
-				 if priovariables and priovariables[var_name] then
-						priovariables[var_name](var_value) -- Pass the value to the variable's function
+				 local var_values = {}
+				 for i = 2, #parts do
+						table.insert(var_values, parts[i])
+				 end
+				 if wm.var and wm.var[var_name] then
+						wm.var[var_name](unpack(var_values)) -- Pass all values to the variable's function
 						return {"OK\n"}
 				 else
 						return {"EINVAL: variable not found.\n"}
@@ -62,8 +65,8 @@ local commands = {
 			end
 	 end,
 	 exec = function(client, line, res, remainder)
-			if (prioactions and prioactions[remainder]) then
-				 prioactions[remainder]()
+			if (wm.actions and wm.actions[remainder]) then
+				 wm.actions[remainder]()
 				 return {"OK\n"}
 			else
 				 return {"EINVAL: target action not found.\n"}

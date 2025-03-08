@@ -95,7 +95,7 @@ defevhs["segment_request"] =
 			end
 	 end
 
-function prio_group_handler(source, status)
+function group_handler(source, status)
 	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
 			defevhs[status.kind](wnd, source, status)
@@ -121,25 +121,9 @@ local function setup_wnd(vid, aid, opts)
 			return
 	 end
 
-	 local wnd = prio_new_window(vid, aid, opts) -- Get the window object returned by prio_new_window
+	 local wnd = new_window(vid, aid, opts) -- Get the window object returned by new_window
 	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}) -- Pass the anchor
 	 return wnd
-end
-
-function prio_target_window(tgt, cfg, x, y, w, h, force)
-	 launch_target(tgt, cfg, LAUNCH_INTERNAL,
-								 function(source, status)
-										if (status.kind == "preroll") then
-											 local wnd = setup_wnd(source, status.source_audio,
-																						 {x = x, y = y, w = w, h = h,
-																							force_size = force})
-											 target_updatehandler(source, prio_group_handler)
-											 if (wnd) then
-													wnd:select()
-											 end
-										end
-								 end
-	 )
 end
 
 function client_event_handler(source, status)
@@ -171,7 +155,7 @@ function client_event_handler(source, status)
 
 			arrange() -- Call arrange after adding the window
 
-			target_updatehandler(source, prio_group_handler)
+			target_updatehandler(source, group_handler)
 			send_type_data(source, "terminal")
 
 			wnd:select()
@@ -202,7 +186,8 @@ local function get_first_tag_with_data(wnd)
 	 return nil
 end
 
-function prio_windows_linear(hide_hidden)
+-- TODO: maybe remove this function
+function windows_linear(hide_hidden)
 	 local res = {}
 	 for _,v in ipairs(wndlist) do
 			if (not hide_hidden or not hidden[v]) then
@@ -362,7 +347,7 @@ function set_trigger_point(ctx, vid)
 end
 
 function decor_v_drag(ctx, vid, dx, dy)
-	 if (ctx.wnd ~= priowin) then
+	 if (ctx.wnd ~= wm.window) then
 			return
 	 end
 
@@ -411,7 +396,7 @@ local function decor_drop(ctx)
 end
 
 function decor_h_drag(ctx, vid, dx, dy)
-	 if (ctx.wnd ~= priowin) then
+	 if (ctx.wnd ~= wm.window) then
 			return
 	 end
 
@@ -448,7 +433,7 @@ function decor_h_drag(ctx, vid, dx, dy)
 end
 
 local function decor_v_over(ctx, vid, x, y)
-	 if (ctx.wnd ~= priowin) then
+	 if (ctx.wnd ~= wm.window) then
 			ctx.wnd:select()
 			return
 	 end
@@ -469,7 +454,7 @@ local function decor_v_over(ctx, vid, x, y)
 end
 
 local function decor_h_over(ctx, vid, x, y)
-	 if (ctx.wnd ~= priowin) then
+	 if (ctx.wnd ~= wm.window) then
 			ctx.wnd:select()
 			return
 	 end
@@ -714,27 +699,16 @@ local function find_nearest(bp_x, bp_y, dir)
 	 return lst
 end
 
-function prio_sel_nearest(wnd, dir)
-	 local props = image_surface_resolve_properties(wnd.canvas)
-	 local lst = find_nearest(props.x + props.width * 0.5,
-														props.y + props.height * 0.5, dir)
-	 if (lst[1]) then
-			lst[1].wnd:select()
-	 end
-end
-
 function window_select(wnd)
-	 if (priostate and priostate(wnd)) then
-			return
-	 end
-
-	 if (priowin) then
-			if (priowin ~= wnd) then
-				 priowin:deselect()
-			else
-				 return true
-			end
-	 end
+    if (wm.window) then
+        if (wm.window ~= wnd) then
+            if (type(wm.window.deselect) == "function") then
+                wm.window:deselect()
+            end
+        else
+            return true
+        end
+    end
 
 	 local oldi
 	 for i,v in ipairs(wndlist) do
@@ -746,7 +720,7 @@ function window_select(wnd)
 	 end
 	 table.insert(wndlist, wnd)
 
-	 priowin = wnd
+	 wm.window = wnd
 	 if (valid_vid(wnd.target)) then
 			wnd.dispmask = (bit.band(wnd.dispmask, bit.bnot(TD_HINT_UNFOCUSED)))
 			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
@@ -766,8 +740,8 @@ local function window_deselect(wnd)
 			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
 	 end
 	 wnd:border_color(unpack(wm.cfg.inactive_color))
-	 if (priowin == wnd) then
-			priowin = nil
+	 if (wm.window == wnd) then
+			wm.window = nil
 	 end
 
 	 for k,v in ipairs(wnd.event_hooks) do
@@ -786,7 +760,7 @@ local function window_hide(wnd)
 
 	 wnd:deselect()
 	 hide_image(wnd.anchor)
-	 for k,v in ipairs(wnd.event_hooks) do
+	 for _,v in ipairs(wnd.event_hooks) do
 			v(wnd, "hide")
 	 end
 
@@ -822,8 +796,8 @@ end
 
 local function window_destroy(wnd)
 	 local cp = image_surface_resolve_properties(wnd.canvas)
-	 if (priowin == wnd) then
-			priowin = nil
+	 if (wm.window == wnd) then
+			wm.window = nil
 	 end
 
 	 local mx, my = mouse_xy()
@@ -875,12 +849,12 @@ local function window_destroy(wnd)
 	 wnd.dead = true
 
 	 -- find something else to select
-	 if (not priowin) then
+	 if (not wm.window) then
 			-- Select the next window in line
 			if #wndlist > 0 then
 				 wndlist[#wndlist]:select()
 			else
-				 find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1)
+				 find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1) -- TODO: maybe change this function
 			end
 	 end
 
@@ -897,7 +871,6 @@ local function window_destroy(wnd)
 			end
 	 end
 
-	 -- Call arrange AFTER removing the wnd
 	 arrange()
 end
 
@@ -1019,6 +992,12 @@ local function window_mousemotion(ctx, vid, x, y)
 end
 
 local function window_drag_start(wnd, x, y)
+
+	 if wnd.force_size == true then
+			wnd.force_size = false
+			arrange()
+	 end
+
 	 if (not wnd.drag_data) then
 			wnd.drag_data = {
 				 start_x = x,
@@ -1043,19 +1022,15 @@ end
 
 local function window_mousebutton(ctx, devid, ind, act)
 	 -- trick to avoid spurious "release" events being forwarded
-	 if (ctx == priowin) then
-			if (priowin.tab_cooldown) then
-				 priowin.tab_cooldown = nil
+	 if (ctx == wm.window) then
+			if (wm.window.tab_cooldown) then
+				 wm.window.tab_cooldown = nil
 				 return
 			end
 	 else
 			if (act) then
 				 ctx:select()
 			end
-			return
-	 end
-
-	 if (priostate and priostate(ctx)) then
 			return
 	 end
 
@@ -1079,7 +1054,7 @@ local function window_mousebutton(ctx, devid, ind, act)
 end
 
 local function window_mouseover(ctx)
-	 if (ctx.wnd and ctx.wnd ~= priowin) then -- Check if window exists and is not already focused
+	 if (ctx.wnd and ctx.wnd ~= wm.window) then -- Check if window exists and is not already focused
 			ctx.wnd:select() -- Select the window on mouseover
 	 end
 
@@ -1112,7 +1087,7 @@ end
 
 -- Return an iterator for iterating windows, windows-with-external
 -- connection
-function prio_iter_windows(external)
+function iter_windows(external)
 	 local ctx = {}
 
 	 for k,v in pairs(wm.windows) do
@@ -1161,31 +1136,29 @@ end
 -- window arrange functions
 -- ----------------------------------------------------
 
-function arrange()
+local function arrange_floating()
 	 local tag = wm.tags and wm.tags[wm.current_tag] or {}
 	 local n = #tag
 
 	 if n == 0 then return end
-
-	 if wm.cfg.layout_mode == "monocle" then
-			arrange_monocle(tag)
-	 elseif wm.cfg.layout_mode == "middle_stack" then
-			arrange_master_middle_stack(tag)
-	 elseif wm.cfg.layout_mode == "grid" then
-			arrange_grid(tag)
-	 else -- Default to the existing master/stack layout
-			arrange_master_stack(tag)
-	 end
 end
 
-function arrange_monocle(tag)
+local function arrange_monocle(tag)
 	 local gap = wm.cfg.window_gap or 5
-	 local n = #tag
 	 local statusbar_height = wm.cfg.statusbar_height or 20
 	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 
+	 local visible_windows = {}
+	 for _, wnd in ipairs(tag) do
+			if wnd.force_size == true then
+				 table.insert(visible_windows, wnd)
+			end
+	 end
+
+	 local n = #visible_windows
+
 	 for i = 1, n do
-			local wnd = tag[i]
+			local wnd = visible_windows[i]
 			local pad_w = wnd.margin.l + wnd.margin.r
 			local pad_h = wnd.margin.t + wnd.margin.b
 
@@ -1199,11 +1172,19 @@ function arrange_monocle(tag)
 	 end
 end
 
-function arrange_grid(tag)
-	 local n = #tag
+local function arrange_grid(tag)
 	 local gap = wm.cfg.window_gap or 5
 	 local statusbar_height = wm.cfg.statusbar_height or 20
 	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
+
+	 local visible_windows = {}
+	 for _, wnd in ipairs(tag) do
+			if wnd.force_size == true then
+				 table.insert(visible_windows, wnd)
+			end
+	 end
+
+	 local n = #visible_windows
 
 	 local cols = math.ceil(math.sqrt(n))
 	 local rows = math.ceil(n / cols)
@@ -1215,7 +1196,7 @@ function arrange_grid(tag)
 	 for row = 1, rows do
 			for col = 1, cols do
 				 if index <= n then
-						local wnd = tag[index]
+						local wnd = visible_windows[index]
 						local pad_w = wnd.margin.l + wnd.margin.r
 						local pad_h = wnd.margin.t + wnd.margin.b
 
@@ -1235,25 +1216,37 @@ function arrange_grid(tag)
 	 end
 end
 
-function arrange_master_middle_stack(tag)
-	 local n = #tag
+local function arrange_master_middle_stack(tag)
 	 local statusbar_height = wm.cfg.statusbar_height or 20
 	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local gap = wm.cfg.window_gap or 5
+	 local master_ratio = wm.cfg.master_ratio or 0.5 -- Add default master_ratio
 
-	 if n == 1 then
-			arrange_monocle(tag)
+	 local visible_windows = {}
+	 for _, wnd in ipairs(tag) do
+			if wnd.force_size == true then
+				 table.insert(visible_windows, wnd)
+			end
+	 end
+
+	 local n = #visible_windows
+
+	 if n == 0 then
 			return
 	 end
 
-	 local master_area_w = VRESW * wm.cfg.master_ratio
+	 if n == 1 then
+			arrange_monocle(visible_windows)
+			return
+	 end
+
+	 local master_area_w = VRESW * master_ratio
 	 local master_area_h = VRESH - statusbar_height
 	 local stack_area_w = (VRESW - master_area_w) / 2
 	 local stack_area_h = VRESH - statusbar_height
 
-	 local gap = wm.cfg.window_gap or 5
-
 	 -- Master window (n > 1)
-	 local master = tag[1]
+	 local master = visible_windows[1]
 	 local pad_w = master.margin.l + master.margin.r
 	 local pad_h = master.margin.t + master.margin.b
 
@@ -1271,9 +1264,9 @@ function arrange_master_middle_stack(tag)
 
 	 for i = 2, n do
 			if i % 2 == 0 then
-				 table.insert(left_stack, tag[i])
+				 table.insert(left_stack, visible_windows[i])
 			else
-				 table.insert(right_stack, tag[i])
+				 table.insert(right_stack, visible_windows[i])
 			end
 	 end
 
@@ -1312,26 +1305,38 @@ function arrange_master_middle_stack(tag)
 	 end
 end
 
-function arrange_master_stack(tag)
-	 local n = #tag
+local function arrange_master_stack(tag)
 	 local statusbar_height = wm.cfg.statusbar_height or 20
 	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local gap = wm.cfg.window_gap or 5
+	 local master_ratio = wm.cfg.master_ratio or 0.5 -- Add default master_ratio
 
-	 if n == 1 then
-			arrange_monocle(tag)
+	 local visible_windows = {}
+	 for _, wnd in ipairs(tag) do
+			if wnd.force_size == true then
+				 table.insert(visible_windows, wnd)
+			end
+	 end
+
+	 local n = #visible_windows
+
+	 if n == 0 then
 			return
 	 end
 
-	 local master_area_w = VRESW * wm.cfg.master_ratio
+	 if n == 1 then
+			arrange_monocle(visible_windows)
+			return
+	 end
+
+	 local master_area_w = VRESW * master_ratio
 	 local master_area_h = VRESH - statusbar_height
 	 local stack_area_x = master_area_w
 	 local stack_area_w = VRESW - master_area_w
 	 local stack_area_h = VRESH - statusbar_height
 
-	 local gap = wm.cfg.window_gap or 5
-
 	 -- Master window (n > 1)
-	 local master = tag[1]
+	 local master = visible_windows[1]
 	 local pad_w = master.margin.l + master.margin.r
 	 local pad_h = master.margin.t + master.margin.b
 
@@ -1346,7 +1351,7 @@ function arrange_master_stack(tag)
 	 -- Stack windows (n > 1)
 	 local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
 	 for i = 2, n do
-			local wnd = tag[i]
+			local wnd = visible_windows[i]
 			local pad_w = wnd.margin.l + wnd.margin.r
 			local pad_h = wnd.margin.t + wnd.margin.b
 
@@ -1360,12 +1365,31 @@ function arrange_master_stack(tag)
 	 end
 end
 
+function arrange()
+	 local tag = wm.tags and wm.tags[wm.current_tag] or {}
+	 local n = #tag
+
+	 if n == 0 then return end
+
+	 if wm.cfg.layout_mode == "monocle" then
+			arrange_monocle(tag)
+	 elseif wm.cfg.layout_mode == "middle_stack" then
+			arrange_master_middle_stack(tag)
+	 elseif wm.cfg.layout_mode == "grid" then
+			arrange_grid(tag)
+	 elseif wm.cfg.layout_mode == "floating" then
+			arrange_floating(tag)
+	 else -- Default to the existing master/stack layout
+			arrange_master_stack(tag)
+	 end
+end
+
 function set_layout_mode(mode)
 	 wm.cfg.layout_mode = mode
 	 arrange() -- Re-arrange windows after changing layout
 end
 
-function prio_new_window(vid, aid, opts)
+function new_window(vid, aid, opts)
 	 assert(opts and opts.x and opts.y and opts.w and opts.h)
 
 	 -- create anchor to track and control position and ordering
@@ -1386,6 +1410,7 @@ function prio_new_window(vid, aid, opts)
 
 	 window_id_counter = window_id_counter + 1 -- Increment the counter
 	 local wnd = {
+			-- TODO: windows id from deleted windows are not reasigned as avaliable
 			id = window_id_counter, -- Assign the current counter value as the ID
 			name = "awm_window",
 			anchor = anchor,
@@ -1431,16 +1456,14 @@ function prio_new_window(vid, aid, opts)
 			update_tprops = window_update_tprops,
 			paste = window_paste,
 
-			-- tags
-			tag_remove = tag_remove,
-
 			-- projectable toggles
 			delete_protect = opts.delete_protect,
 			tab_block = opts.tab_block,
 			select_block = opts.select_block,
 
-			-- per tab toggles
-			force_size = opts.force_size,
+			-- toggles
+			-- force_size = opts.force_size,
+			force_size = true,
 			autocrop = opts.autocrop,
 			flip_y = opts.flip_y,
 

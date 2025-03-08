@@ -1,9 +1,9 @@
--- prio IPC system (adapted from Durden)
+-- IPC system (adapted from Durden)
 -- echo "variable gaps 10" | socat - UNIX-CONNECT:./Proyectos/awm/awm/ipc/awm_control
 
--- CURSED: i think the ipc system is causing stack dump have no idea why
+-- CURSED: i think the ipc system is causing stack dumps have no idea why
 
-local prio_ipc = {}
+local ipc = {}
 local clients = {}
 local control_socket
 
@@ -29,7 +29,7 @@ local function update_control()
 end
 
 -- Function to set the control path
-prio_ipc.set_control_path = function(path)
+ipc.set_control_path = function(path)
 	 control_path = path
 	 update_control()
 end
@@ -142,6 +142,6 @@ timer_add_periodic("control", 1, false, function()
 											if (control_socket) then
 												 poll_control_channel()
 											end
-end, true)
+end)
 
-return prio_ipc
+return ipc

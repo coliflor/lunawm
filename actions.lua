@@ -3,8 +3,8 @@ local actions = {}
 -- chain window
 local function wrun(fun)
 	 return function()
-			if (priowin ~= nil) then
-				 fun(priowin)
+			if (wm.window ~= nil) then
+				 fun(wm.window)
 			end
 	 end
 end
@@ -30,7 +30,7 @@ function view_tag(tag_number)
         end
     end
 
-    local all_windows = prio_windows_linear(false) or {}
+    local all_windows = windows_linear(false) or {} -- TODO: replace this function?
 
     local hide_list = {}
     for _, wnd in ipairs(all_windows) do
@@ -96,10 +96,6 @@ actions.swap_last_current_tag = function() swap_last_current_tag() end
 
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy() end)
 actions.paste        = wrun(function(wnd) wnd:paste(CLIPBOARD_MESSAGE)end)
-actions.select_up    = wrun(function(wnd) prio_sel_nearest(wnd, "t") end)
-actions.select_down  = wrun(function(wnd) prio_sel_nearest(wnd, "b") end)
-actions.select_left  = wrun(function(wnd) prio_sel_nearest(wnd, "l") end)
-actions.select_right = wrun(function(wnd) prio_sel_nearest(wnd, "r") end)
 
 actions.shrink_h = wrun(function(wnd) wnd:step_sz(1, 0,-1) end)
 actions.shrink_w = wrun(function(wnd) wnd:step_sz(1,-1, 0) end)
@@ -122,7 +118,7 @@ actions.set_temp_prefix_1 = function() wm.sym.prefix = "t1_" end
 actions.hide = wrun(function(wnd) wnd:hide() end)
 actions.copy = wrun(function(wnd)
 			if (wnd.clipboard_msg) then
-				 prioclip = wnd.clipboard_msg
+				 wm.clip = wnd.clipboard_msg
 			end
 end)
 actions.paste = wrun(function(wnd)
@@ -130,7 +126,7 @@ actions.paste = wrun(function(wnd)
 end)
 
 -- Layout cycling
-local layout_modes = {"monocle", "grid", "master_stack", "middle_stack"}
+local layout_modes = {"monocle", "grid", "master_stack", "middle_stack", "floating"}
 local current_layout_index = 1
 
 actions.cycle_layout = function()
@@ -150,7 +146,7 @@ actions.rotate_window_stack = function()
 
 	 local current_index = nil
 	 for i, wnd in ipairs(current_tag_windows) do
-			if (wnd == priowin) then
+			if (wnd == wm.window) then
 				 current_index = i
 				 break
 			end
@@ -178,7 +174,7 @@ actions.rotate_window_stack_negative = function()
 
 	 local current_index = nil
 	 for i, wnd in ipairs(current_tag_windows) do
-			if (wnd == priowin) then
+			if (wnd == wm.window) then
 				 current_index = i
 				 break
 			end
@@ -210,12 +206,12 @@ actions.swap_master = function()
 			return -- Nothing to swap if there are 0 or 1 windows
 	 end
 
-	 if not priowin then
+	 if not wm.window then
 			return -- No window selected
 	 end
 
 	 local master = tag[1]
-	 if master == priowin then
+	 if master == wm.window then
 			-- If the master is selected, swap with a child window
 			local swap_index = 2 -- Default to the first child
 
@@ -240,7 +236,7 @@ actions.swap_master = function()
 	 local selected_index = nil
 
 	 for i, wnd in ipairs(tag) do
-			if wnd == priowin then
+			if wnd == wm.window then
 				 selected_index = i
 				 break
 			end
@@ -267,29 +263,29 @@ actions.swap_child_windows = function()
 			return -- Nothing to swap if there are 0, 1, or 2 windows
 	 end
 
-	 if not priowin then
+	 if not wm.window then
 			return -- No window selected
 	 end
 
-	 local priowin_index = nil
+	 local window_index = nil
 	 for i, wnd in ipairs(tag) do
-			if wnd == priowin then
-				 priowin_index = i
+			if wnd == wm.window then
+				 window_index = i
 				 break
 			end
 	 end
 
-	 if not priowin_index or priowin_index == 1 then
+	 if not window_index or window_index == 1 then
 			return -- Selected window not found or is the master
 	 end
 
-	 local swap_index = priowin_index + 1
+	 local swap_index = window_index + 1
 	 if swap_index > n then
 			swap_index = 2 -- Wrap around to the first child
 	 end
 
 	 -- Swap the windows
-	 tag[priowin_index], tag[swap_index] = tag[swap_index], tag[priowin_index]
+	 tag[window_index], tag[swap_index] = tag[swap_index], tag[window_index]
 
 	 arrange() -- Re-arrange the windows
 end
@@ -302,29 +298,29 @@ actions.swap_child_windows_negative = function()
 			return -- Nothing to swap if there are 0, 1, or 2 windows
 	 end
 
-	 if not priowin then
+	 if not wm.window then
 			return -- No window selected
 	 end
 
-	 local priowin_index = nil
+	 local window_index = nil
 	 for i, wnd in ipairs(tag) do
-			if wnd == priowin then
-				 priowin_index = i
+			if wnd == wm.window then
+				 window_index = i
 				 break
 			end
 	 end
 
-	 if not priowin_index or priowin_index == 1 then
+	 if not window_index or window_index == 1 then
 			return -- Selected window not found or is the master
 	 end
 
-	 local swap_index = priowin_index - 1
+	 local swap_index = window_index - 1
 	 if swap_index < 2 then
 			swap_index = n -- Wrap around to the last child
 	 end
 
 	 -- Swap the windows
-	 tag[priowin_index], tag[swap_index] = tag[swap_index], tag[priowin_index]
+	 tag[window_index], tag[swap_index] = tag[swap_index], tag[window_index]
 
 	 arrange() -- Re-arrange the windows
 end
@@ -491,6 +487,9 @@ actions.move_window_to_tag_2 = wrun(function(wnd) move_window_to_tag(wnd, 2) end
 actions.move_window_to_tag_3 = wrun(function(wnd) move_window_to_tag(wnd, 3) end)
 actions.move_window_to_tag_4 = wrun(function(wnd) move_window_to_tag(wnd, 4) end)
 actions.move_window_to_tag_5 = wrun(function(wnd) move_window_to_tag(wnd, 5) end)
+
+actions.window_stacked = wrun(function(wnd)  wnd.force_size = true arrange()  end)
+actions.window_floating = wrun(function(wnd) wnd.force_size = false arrange() end)
 
 actions["terminal"] = actions.terminal
 

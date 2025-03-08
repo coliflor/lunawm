@@ -6,6 +6,7 @@ wm = {
 	 var = {}, -- variables
 
 	 windows = {},
+	 window = {},
 
 	 bg = nil, -- background
 
@@ -15,7 +16,9 @@ wm = {
 	 last_tag = 1,
 
 	 -- Global variable to track mod key state
-	 mod_key_pressed = false
+	 mod_key_pressed = false,
+
+	 clip,
 }
 
 CLIPBOARD_MESSAGE = "";
@@ -114,7 +117,7 @@ end
 
 -- Function to set the mod key state
 local function set_mod_key_state(active)
-    wm.mod_key_pressed = active
+	 wm.mod_key_pressed = active
 end
 
 -- two modes, one with normal forwarding etc. one with a region-select
@@ -162,15 +165,14 @@ function awm_normal_input(iotbl)
 
 	 -- we have a keyboard key without a binding OR a game/other device,
 	 -- forward normally if the window is connected to an external process
-	 if (priowin and valid_vid(priowin.target, TYPE_FRAMESERVER)) then
-			target_input(priowin.target, iotbl)
+	 if (wm.window and valid_vid(wm.window.target, TYPE_FRAMESERVER)) then
+			target_input(wm.window.target, iotbl)
 	 end
 end
 
 -- mouse event handlers need a CLK in order to handle time- based
 -- events like hover.
 function awm_clock_pulse()
-	 mouse_tick(1)
 end
 
 function awm_update_density(vppcm)
@@ -184,8 +186,8 @@ function awm_update_density(vppcm)
 	 end
 
 	 -- send to all windows that the density has potentially changed
-	 if (prio_iter_windows) then
-			for v in prio_iter_windows(false) do
+	 if (iter_windows) then
+			for v in iter_windows(false) do
 				 target_displayhint(v, 0, 0, TD_HINT_IGNORE, {ppcm = vppcm})
 			end
 	 end

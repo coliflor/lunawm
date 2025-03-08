@@ -58,7 +58,7 @@ variables.view_tag = function(tag)
     local tone = tonumber(tag)
 
     if tone then
-        print("fusing tags:", tone, ttwo)
+        print("fusing tags:", tone)
 				view_tag(tone)
     else
         print("Invalid tag", tone)

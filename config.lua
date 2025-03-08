@@ -1,6 +1,6 @@
 return {
 
-	 layout_mode = "master_stack", -- monocle, grid, master_stack, middle_stack
+	 layout_mode = "master_stack", -- monocle, grid, master_stack, middle_stack, floating
 
 	 num_tags = 5; -- Number of workspaces/tags
 	 master_ratio = 0.6; -- Ratio of master window size

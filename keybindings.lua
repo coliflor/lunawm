@@ -17,10 +17,6 @@ local M2 = "lalt_"
 local M3 = "lalt_lctrl_"
 return {
 	 -- window positioning / sizing controls
-	 [M2 ..    "j"] = "select_up",
-	 [M2 ..    "k"] = "select_down",
-	 [M2 ..    "h"] = "select_left",
-	 [M2 ..    "l"] = "select_right",
 	 [M3 ..    "j"] = "move_up",
 	 [M3 ..    "k"] = "move_down",
 	 [M3 ..    "h"] = "move_left",
@@ -75,4 +71,7 @@ return {
 	 [M2 .. "v"] = "swap_child_windows_negative",
 
 	 [M2 .. "x"] = "fuse_all_tags",
+
+	 [M2 .. "c"] = "window_stacked",
+	 [M2 .. "g"] = "window_floating",
 };

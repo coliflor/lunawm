@@ -1387,7 +1387,7 @@ function prio_new_window(vid, aid, opts)
 	 window_id_counter = window_id_counter + 1 -- Increment the counter
 	 local wnd = {
 			id = window_id_counter, -- Assign the current counter value as the ID
-			name = "prio_window",
+			name = "awm_window",
 			anchor = anchor,
 			canvas = vid,
 			aid = aid,
@@ -1431,6 +1431,9 @@ function prio_new_window(vid, aid, opts)
 			update_tprops = window_update_tprops,
 			paste = window_paste,
 
+			-- tags
+			tag_remove = tag_remove,
+
 			-- projectable toggles
 			delete_protect = opts.delete_protect,
 			tab_block = opts.tab_block,
@@ -1472,9 +1475,9 @@ function prio_new_window(vid, aid, opts)
 			wnd.target = vid
 	 end
 
-	 table.insert(wndlist, wnd)
-
 	 -- index by supplied vid for event handlers
 	 wm.windows[vid] = wnd
+
+	 table.insert(wndlist, wnd)
 	 return wnd
 end

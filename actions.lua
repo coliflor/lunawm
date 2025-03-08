@@ -13,79 +13,77 @@ actions.terminal = function() terminal() end
 actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
-local function view_tag(tag_number)
-    if wm.current_tag ~= tag_number then
-        wm.last_tag = wm.current_tag
-        wm.current_tag = tag_number
+function view_tag(tag_number)
+    if wm.current_tag == tag_number then
+        return -- Do nothing if already on the target tag
+    end
 
-        -- Create a snapshot of the target tag's windows
-        local target_tag_windows = {}
-        if (wm.tags[tag_number]) then
-            for _, tag_wnd in ipairs(wm.tags[tag_number]) do
-                table.insert(target_tag_windows, tag_wnd)
+    wm.last_tag = wm.current_tag
+    wm.current_tag = tag_number
+
+    local target_windows = wm.tags[tag_number] or {}
+
+    for _, wnd in ipairs(target_windows) do
+        if wnd and type(wnd.show) == "function" then
+            update_window_dimensions(wnd, tag_number)
+            wnd:show()
+        end
+    end
+
+    local all_windows = prio_windows_linear(false) or {}
+
+    local hide_list = {}
+    for _, wnd in ipairs(all_windows) do
+        local found = false
+        for _, target_wnd in ipairs(target_windows) do
+            if wnd == target_wnd then
+                found = true
+                break
             end
         end
-
-        -- Show and update dimensions of all windows in the target tag
-        for _, tag_wnd in ipairs(target_tag_windows) do
-            if (tag_wnd and type(tag_wnd.show) == "function") then
-                tag_wnd:show()
-                update_window_dimensions(tag_wnd, tag_number) -- Update dimensions here
-            end
+        if not found then
+            table.insert(hide_list, wnd)
         end
+    end
 
-        -- Hide all windows not in the target tag
-        for _, other_wnd in ipairs(prio_windows_linear(false)) do
-            local found = false
-            for _, tag_wnd in ipairs(target_tag_windows) do
-                if (tag_wnd == other_wnd) then
-                    found = true
-                    break
-                end
-            end
-            if (not found) then
-                other_wnd:hide()
-            end
+    for _, wnd in ipairs(hide_list) do
+        if wnd and type(wnd.hide) == "function" then
+            wnd:hide()
         end
+    end
 
-        -- Debug: Print the windows in the current tag
-        print("Tag " .. tag_number .. " windows:")
-        if (wm.tags[tag_number]) then
-            for _, tag_wnd in ipairs(wm.tags[tag_number]) do
-                if (tag_wnd and tag_wnd.id) then
-                    print("  Window ID: " .. tag_wnd.id)
-                else
-                    print("  Window (no ID or invalid)")
-                end
-            end
-        else
-            print("  (No windows in this tag)")
+    arrange()
+
+    print("Tag " .. tag_number .. " windows:")
+    if #target_windows > 0 then
+        for _, wnd in ipairs(target_windows) do
+            print("  Window ID: " .. (wnd and wnd.id or "(no ID)"))
         end
-
-        arrange()
+    else
+        print("  (No windows in this tag)")
     end
 end
 
 local function swap_last_current_tag()
-    if not wm.last_tag then
-        print("swap_last_current_tag: No last tag recorded.")
-        return
-    end
+	 if not wm.last_tag then
+			print("swap_last_current_tag: No last tag recorded.")
+			return
+	 end
 
-    local current_tag = wm.current_tag
-    local last_tag = wm.last_tag
+	 local current_tag = wm.current_tag
+	 local last_tag = wm.last_tag
 
-    -- Swap the tags
-    view_tag(last_tag)
+	 -- Swap the tags
+	 view_tag(last_tag)
 
-    print("swap_last_current_tag: Swapped tags", current_tag, "and", last_tag)
+	 print("swap_last_current_tag: Swapped tags", current_tag, "and", last_tag)
 end
 
 function update_window_dimensions(wnd, tag)
-    if wnd.tags[tag] then
-        wnd:resize(wnd.tags[tag].width, wnd.tags[tag].height)
-        wnd:move(wnd.tags[tag].x, wnd.tags[tag].y)
-    end
+	 if wnd.tags[tag] then
+			wnd:resize(wnd.tags[tag].width, wnd.tags[tag].height)
+			wnd:move(wnd.tags[tag].x, wnd.tags[tag].y)
+	 end
 end
 
 actions.view_tag_1 = function() view_tag(1) end
@@ -258,8 +256,7 @@ actions.swap_master = function()
 	 -- Swap the windows in the tag table
 	 tag[master_index], tag[selected_index] = tag[selected_index], tag[master_index]
 
-	 -- Re-arrange the windows
-	 arrange()
+	 arrange() -- Re-arrange the windows
 end
 
 actions.swap_child_windows = function()
@@ -377,7 +374,7 @@ local function assign_tag(tag_index, wnd)
 			if tag_count > 1 then
 				 table.remove(wm.tags[tag_index], found_index)
 			end
-			arrange() -- Re-arrange windows
+			--view_tag(wm.current_tag)
 	 else
 			-- Add the window to the tag if it's not already there
 			table.insert(wm.tags[tag_index], wnd)
@@ -390,108 +387,103 @@ actions.assign_tag_3 = wrun(function(wnd) assign_tag(3, wnd) end)
 actions.assign_tag_4 = wrun(function(wnd) assign_tag(4, wnd) end)
 actions.assign_tag_5 = wrun(function(wnd) assign_tag(5, wnd) end)
 
-local function fuse_tags(tag_index1, tag_index2)
-    -- Check if the tags exist
-    if not wm.tags[tag_index1] or not wm.tags[tag_index2] then
-        print("fuse_tags: One or both tags do not exist.")
-        return
-    end
+function fuse_tags(tag_index1, tag_index2)
+	 -- Check if the tags exist
+	 if not wm.tags[tag_index1] or not wm.tags[tag_index2] then
+			print("fuse_tags: One or both tags do not exist.")
+			return
+	 end
 
-    -- Fuse the windows from tag2 into tag1
-    for _, wnd in ipairs(wm.tags[tag_index2]) do
-        -- Check if the window already exists in tag1
-        local found = false
-        for _, existing_wnd in ipairs(wm.tags[tag_index1]) do
-            if existing_wnd == wnd then
-                found = true
-                break
-            end
-        end
-        if not found then
-            table.insert(wm.tags[tag_index1], wnd)
-        end
-    end
+	 -- Reassign windows from tag_index2 to tag_index1
+	 for _, wnd in ipairs(wm.tags[tag_index2]) do
+			assign_tag(tag_index1, wnd)
+	 end
 
-    wm.tags[tag_index2] = {}
-    arrange() -- Re-arrange windows
+   -- Remove tag index from windows in tag_index2
+	 for _, wnd in ipairs(wm.tags[tag_index2]) do
+			assign_tag(tag_index2, wnd)
+	 end
 
-    print("fuse_tags: Tag", tag_index2, "fused into tag", tag_index1)
+	 -- Reset tag_index2
+	 --wm.tags[tag_index2] = {}
+
+	 print("fuse_tags: Tag", tag_index2, "fused into tag", tag_index1)
 end
 
 local function fuse_all_tags()
-    local num_tags = #wm.tags
+	 local num_tags = #wm.tags
 
-    if num_tags <= 1 then
-        print("fuse_all_tags: There are not enough tags to fuse.")
-        return
-    end
+	 if num_tags <= 1 then
+			print("fuse_all_tags: There are not enough tags to fuse.")
+			return
+	 end
 
-    -- Fuse all tags into the first tag (index 1)
-    for i = num_tags, 2, -1 do -- Iterate from the last tag to the second tag
-        if wm.tags[i] then
-            fuse_tags(1, i) -- Fuse tag 'i' into tag 1
-        end
-    end
+	 -- Fuse all tags into the first tag (index 1)
+	 for i = num_tags, 2, -1 do -- Iterate from the last tag to the second tag
+			if wm.tags[i] then
+				 fuse_tags(1, i) -- Fuse tag 'i' into tag 1
+			end
+	 end
 
-		view_tag(1)
-    arrange() -- Re-arrange windows
+	 view_tag(1)
+	 arrange() -- Re-arrange windows
 
-    print("fuse_all_tags: All tags fused into tag 1.")
+	 print("fuse_all_tags: All tags fused into tag 1.")
 end
 
 actions.fuse_all_tags = function() fuse_all_tags() end
 
 local function move_window_to_tag(wnd, target_tag_index)
-    if not wm.tags[target_tag_index] then
-        print("move_window_to_tag: Target tag does not exist.")
-        return
-    end
+	 if not wm.tags[target_tag_index] then
+			print("move_window_to_tag: Target tag does not exist.")
+			return
+	 end
 
-    local current_tag_index = nil
-    for tag_index, tag in ipairs(wm.tags) do
-        if tag then
-            for _, existing_wnd in ipairs(tag) do
-                if existing_wnd == wnd then
-                    current_tag_index = tag_index
-                    break
-                end
-            end
-        end
-        if current_tag_index then
-            break
-        end
-    end
+	 local current_tag_index = nil
+	 for tag_index, tag in ipairs(wm.tags) do
+			if tag then
+				 for _, existing_wnd in ipairs(tag) do
+						if existing_wnd == wnd then
+							 current_tag_index = tag_index
+							 break
+						end
+				 end
+			end
+			if current_tag_index then
+				 break
+			end
+	 end
 
-    if not current_tag_index then
-        print("move_window_to_tag: Window not found in any tag.")
-        return
-    end
+	 if not current_tag_index then
+			print("move_window_to_tag: Window not found in any tag.")
+			return
+	 end
 
-    if current_tag_index == target_tag_index then
-        print("move_window_to_tag: Window is already in the target tag.")
-        return
-    end
+	 if current_tag_index == target_tag_index then
+			print("move_window_to_tag: Window is already in the target tag.")
+			return
+	 end
 
-    -- Remove the window from the current tag
-    local found_index = nil
-    for i, existing_wnd in ipairs(wm.tags[current_tag_index]) do
-        if existing_wnd == wnd then
-            found_index = i
-            break
-        end
-    end
+	 -- Remove the window from the current tag
+	 local found_index = nil
+	 for i, existing_wnd in ipairs(wm.tags[current_tag_index]) do
+			if existing_wnd == wnd then
+				 found_index = i
+				 break
+			end
+	 end
 
-    if found_index then
-        table.remove(wm.tags[current_tag_index], found_index)
-    end
+	 if found_index then
+			table.remove(wm.tags[current_tag_index], found_index)
+	 end
 
-    -- Add the window to the target tag
-    table.insert(wm.tags[target_tag_index], wnd)
+	 -- Add the window to the target tag
+	 table.insert(wm.tags[target_tag_index], wnd)
 
-		wnd:hide()
-		arrange() -- Re-arrange windows on both tags
+	 wnd:hide()
+	 arrange() -- Re-arrange windows on both tags
 
-    print("move_window_to_tag: Window", wnd, "moved from tag", current_tag_index, "to tag", target_tag_index)
+	 print("move_window_to_tag: Window", wnd, "moved from tag", current_tag_index, "to tag", target_tag_index)
 end
 
 actions.move_window_to_tag_1 = wrun(function(wnd) move_window_to_tag(wnd, 1) end)

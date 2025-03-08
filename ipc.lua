@@ -1,6 +1,8 @@
 -- prio IPC system (adapted from Durden)
 -- echo "variable gaps 10" | socat - UNIX-CONNECT:./Proyectos/awm/awm/ipc/awm_control
 
+-- CURSED: i think the ipc system is causing stack dump have no idea why
+
 local prio_ipc = {}
 local clients = {}
 local control_socket

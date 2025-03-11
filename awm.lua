@@ -69,6 +69,8 @@ function awm()
 	 local add_cursor = function(name, hx, hy)
 			mouse_add_cursor(name, load_image("cursor/" ..name ..".png"), hx, hy, {})
 	 end
+
+	 add_cursor("def", 0, 0)
 	 add_cursor("rz_diag_l", 0, 0)
 	 add_cursor("rz_diag_r", 0, 0)
 	 add_cursor("rz_down", 0, 0)
@@ -80,13 +82,13 @@ function awm()
 	 add_cursor("drag", 0, 0)
 	 add_cursor("destroy", 6, 7)
 	 add_cursor("new", 8, 6)
-	 add_cursor("default", 0, 0)
 
 	 wm.sym:load_keymap(wm.cfg.keymap)
 
 	 -- try mouse- grab (if wanted)
 	 mouse_setup(BADID, 65535, 1, true, false)
 	 mouse_cursor_sf(wm.cfg.mouse_cursor_scale, wm.cfg.mouse_cursor_scale)
+	 mouse_switch_cursor("def", true)
 
 	 -- rebuild config now that we have access to everything
 	 awm_update_density(VPPCM)
@@ -170,11 +172,6 @@ function awm_normal_input(iotbl)
 	 end
 end
 
--- mouse event handlers need a CLK in order to handle time- based
--- events like hover.
-function awm_clock_pulse()
-end
-
 function awm_update_density(vppcm)
 	 VPPCM = vppcm
 	 wm.cfg = system_load("config.lua")()
@@ -206,6 +203,27 @@ function VRES_AUTORES(w, h, vppcm, flags, source)
 			arrange()
 	 end
 
+end
+
+function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+function toboolean(str)
+    local bool = false
+    if str == "true" then
+        bool = true
+    end
+    return bool
 end
 
 awm_input = awm_normal_input

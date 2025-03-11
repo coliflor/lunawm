@@ -491,6 +491,6 @@ actions.move_window_to_tag_5 = wrun(function(wnd) move_window_to_tag(wnd, 5) end
 actions.window_stacked = wrun(function(wnd)  wnd.force_size = true arrange()  end)
 actions.window_floating = wrun(function(wnd) wnd.force_size = false arrange() end)
 
-actions["terminal"] = actions.terminal
+-- actions["terminal"] = actions.terminal
 
 return actions

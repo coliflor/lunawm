@@ -8,22 +8,10 @@ local hidden = {}
 -- ----------------------------------------------------
 local defevhs = {}
 
-local function dump(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
-end
-
 local function cursor_handler(wnd, source, status)
 	 print("cursor: " .. status.kind)
-	 if (status.kind == "terminated") then
+	 if status.kind == "resized" then
+	 elseif (status.kind == "terminated") then
 			delete_image(source)
 			wnd.mouse_cursor = nil
 			local mx, my = mouse_xy()
@@ -95,6 +83,10 @@ defevhs["segment_request"] =
 			end
 	 end
 
+defevhs["cursorhint"] =
+	 function(wnd, source, stat)
+	 end
+
 function group_handler(source, status)
 	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
@@ -159,6 +151,7 @@ function client_event_handler(source, status)
 			send_type_data(source, "terminal")
 
 			wnd:select()
+
 	 elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 end
 end
@@ -218,7 +211,7 @@ local function window_decor_resize(wnd, neww, newh)
 end
 
 local function window_bordercolor(wnd, r, g, b)
-	 for i,v in ipairs(dirtbl) do
+	 for _,v in ipairs(dirtbl) do
 			if (not wnd.decor[v]) then return end
 			image_color(wnd.decor[v], r, g, b)
 	 end
@@ -495,16 +488,16 @@ local function decor_sel(ctx)
 end
 
 local function decor_reset()
-	 mouse_switch_cursor()
+	 mouse_switch_cursor("def", true)
 end
 
 -- build the decorations: tttt
 --                        l  r
 --                        bbbb and anchor for easier resize
-local function build_decorations(wnd, opts)
+function build_decorations(wnd, opts)
 	 local bw = wm.cfg.border_width
 
-	 if bw == 0 then
+	 if bw == 0 or opts.no_decor == true then
 			-- Remove old decorations
 			if wnd.decor then
 				 for _, decor in pairs(wnd.decor) do
@@ -700,15 +693,15 @@ local function find_nearest(bp_x, bp_y, dir)
 end
 
 function window_select(wnd)
-    if (wm.window) then
-        if (wm.window ~= wnd) then
-            if (type(wm.window.deselect) == "function") then
-                wm.window:deselect()
-            end
-        else
-            return true
-        end
-    end
+	 if (wm.window) then
+			if (wm.window ~= wnd) then
+				 if (type(wm.window.deselect) == "function") then
+						wm.window:deselect()
+				 end
+			else
+				 return true
+			end
+	 end
 
 	 local oldi
 	 for i,v in ipairs(wndlist) do
@@ -802,7 +795,7 @@ local function window_destroy(wnd)
 
 	 local mx, my = mouse_xy()
 	 if (image_hit(wnd.canvas, mx, my)) then
-			mouse_switch_cursor()
+			mouse_switch_cursor("def", true)
 			mouse_show()
 	 end
 
@@ -834,7 +827,7 @@ local function window_destroy(wnd)
 	 end
 	 mouse_droplistener(wnd)
 
-	 for k, v in ipairs(wnd.event_hooks) do
+	 for _, v in ipairs(wnd.event_hooks) do
 			v(wnd, "destroy")
 	 end
 
@@ -1059,17 +1052,17 @@ local function window_mouseover(ctx)
 	 end
 
 	 if (ctx.mouse_cursor) then
-			mouse_custom_cursor(ctx.mouse_cursor)
+			mouse_custom_cursor(ctx.mouse_cursor, true)
 	 elseif (ctx.mouse_hidden) then
 			mouse_hide()
 	 else
-			mouse_switch_cursor()
+			mouse_switch_cursor("def", true)
 	 end
 end
 
 local function window_mouseout(ctx)
 	 mouse_show()
-	 mouse_switch_cursor()
+	 mouse_switch_cursor("def", true)
 
 	 if (not valid_vid(ctx.target, TYPE_FRAMESERVER)) then
 			return
@@ -1427,6 +1420,7 @@ function new_window(vid, aid, opts)
 			ident = "",
 
 			-- decorations
+			decorations = true,
 			decor = {},
 			decor_mh = {},
 			margin = {t = 0, l = 0, r = 0, b = 0},

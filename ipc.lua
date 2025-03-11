@@ -28,12 +28,6 @@ local function update_control()
 	 control_socket = open_nonblock("=ipc/" .. control_path)
 end
 
--- Function to set the control path
-ipc.set_control_path = function(path)
-	 control_path = path
-	 update_control()
-end
-
 update_control() -- Initial control path setup
 
 local function split(inputstr, sep)

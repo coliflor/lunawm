@@ -12,6 +12,7 @@ new_globals = {
 	-- arcan
 	"TYPE_FRAMESERVER",
 	"TD_HINT_IGNORE",
+	"TD_HINT_UNFOCUSED",
 	"LAUNCH_INTERNAL",
 	"FILTER_NONE",
 	"FONT_PT_SZ",
@@ -23,6 +24,9 @@ new_globals = {
 	"APPLID",
 	"WORLDID",
 	"BADID",
+	"ANCHOR_UR",
+	"ANCHOR_UL",
+	"ANCHOR_LL",
 
 	"switch_default_texfilter",
 	"image_surface_properties",
@@ -35,6 +39,10 @@ new_globals = {
 	"mouse_add_cursor",
 	"mouse_cursor_sf",
 	"mouse_iotbl_input",
+	"mouse_xy",
+	"mouse_switch_cursor",
+	"mouse_show",
+	"mouse_hide",
 	"load_image",
 	"delete_image",
 	"blend_image",

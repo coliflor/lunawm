@@ -1,5 +1,5 @@
 -- IPC system (adapted from Durden)
--- echo "variable gaps 10" | socat - UNIX-CONNECT:./Proyectos/awm/awm/ipc/awm_control
+-- echo "var gaps 10" | socat - UNIX-CONNECT:./Proyectos/awm/awm/ipc/awm_control
 
 -- CURSED: i think the ipc system is causing stack dumps have no idea why
 
@@ -42,7 +42,7 @@ local function split(inputstr, sep)
 end
 
 local commands = {
-	 variable = function(client, line, res, remainder)
+	 var = function(client, line, res, remainder)
 			local parts = split(remainder, " ")
 			if #parts >= 2 then
 				 local var_name = parts[1]
@@ -51,13 +51,13 @@ local commands = {
 						table.insert(var_values, parts[i])
 				 end
 				 if wm.var and wm.var[var_name] then
-						wm.var[var_name](unpack(var_values)) -- Pass all values to the variable's function
+						wm.var[var_name](unpack(var_values)) -- Pass all values to the var's function
 						return {"OK\n"}
 				 else
-						return {"EINVAL: variable not found.\n"}
+						return {"EINVAL: var not found.\n"}
 				 end
 			else
-				 return {"EINVAL: invalid arguments for variable command.\n"}
+				 return {"EINVAL: invalid arguments for var command.\n"}
 			end
 	 end,
 	 exec = function(client, line, res, remainder)
@@ -80,7 +80,7 @@ local function do_line(line, cl)
 	 local ind = string.find(line, " ")
 	 local cmd, remainder
 
-	 if (not ind) then
+	 if not ind then
 			cl.connection:write("EINVAL: missing command arg\n")
 			return
 	 end
@@ -88,31 +88,41 @@ local function do_line(line, cl)
 	 cmd = string.sub(line, 1, ind - 1)
 	 remainder = string.sub(line, ind + 1)
 
-	 if not (commands[cmd]) then
+	 if not commands[cmd] then
 			cl.connection:write("EINVAL: missing command\n")
 			return
 	 end
 
-	 for _, v in ipairs(commands[cmd](cl, line, nil, remainder)) do
-			cl.connection:write(v .. "\n")
+	 local ok, res = pcall(commands[cmd], cl, line, nil, remainder)
+	 if ok then
+			if res then
+				 for _, v in ipairs(res) do
+						cl.connection:write(v .. "\n")
+				 end
+			end
+	 else
+			cl.connection:write("ERROR: " .. res .. "\n")
 	 end
 end
 
 local function poll_control_channel()
 	 local nc = control_socket:accept()
 
-	 if (nc) then
+	 if nc then
 			local client = {
 				 connection = nc,
-				 seqn = #clients + 1 -- Unique sequence number
+				 seqn = #clients + 1
 			}
 			nc:lf_strip(true)
 
 			nc:data_handler(function(gpublock)
-            local line, ok = nc:read()
-            while line do
-							 do_line(line, client)
-							 line, ok = nc:read()
+            local data, ok = nc:read()
+            while data do
+							 local lines = split(data, ";")
+							 for _, line in ipairs(lines) do
+									do_line(line, client)
+							 end
+							 data, ok = nc:read()
             end
             if not ok then
 							 local ind = nil

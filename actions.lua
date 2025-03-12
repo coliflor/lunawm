@@ -53,15 +53,6 @@ function view_tag(tag_number)
     end
 
     arrange()
-
-    print("Tag " .. tag_number .. " windows:")
-    if #target_windows > 0 then
-        for _, wnd in ipairs(target_windows) do
-            print("  Window ID: " .. (wnd and wnd.id or "(no ID)"))
-        end
-    else
-        print("  (No windows in this tag)")
-    end
 end
 
 local function swap_last_current_tag()
@@ -95,7 +86,6 @@ actions.view_tag_5 = function() view_tag(5) end
 actions.swap_last_current_tag = function() swap_last_current_tag() end
 
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy() end)
-actions.paste        = wrun(function(wnd) wnd:paste(CLIPBOARD_MESSAGE)end)
 
 actions.shrink_h = wrun(function(wnd) wnd:step_sz(1, 0,-1) end)
 actions.shrink_w = wrun(function(wnd) wnd:step_sz(1,-1, 0) end)

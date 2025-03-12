@@ -21,16 +21,16 @@ wm = {
 	 clip,
 }
 
-CLIPBOARD_MESSAGE = "";
+CLIPBOARD_MESSAGE = ""
 
 function awm()
 
-	 wm.sym = system_load("builtin/keyboard.lua")(); -- keyboard translation
-	 wm.cfg = system_load("config.lua")();
-	 wm.var = system_load("variables.lua")()
+	 wm.sym = system_load("builtin/keyboard.lua")() -- keyboard translation
+	 wm.cfg = system_load("config.lua")()
 	 system_load("builtin/mouse.lua")() -- mouse gesture abstraction etc.
 	 system_load("timer.lua")()
 	 system_load("window.lua")() -- window creation
+	 wm.var = system_load("variables.lua")()
 	 wm.actions = system_load("actions.lua")() -- bindable actions
 	 system_load("ipc.lua")()
 	 wm.bindings = system_load("keybindings.lua")() -- keysym+mods -> actions

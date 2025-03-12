@@ -42,8 +42,7 @@ defevhs["resized"] = function(wnd, source, status)
 
 	 if (wnd.target == source) then
 			wnd.aid = source_audio
-			if (wnd.force_size) then
-				 -- Use tag-specific dimensions if available, otherwise use global wnd.width and wnd.height
+			if (wnd.tags[wm.current_tag].force_size) then
 				 local current_tag = wm.current_tag
 				 if wnd.tags[current_tag] then
 						wnd:resize(wnd.tags[current_tag].width, wnd.tags[current_tag].height)
@@ -83,13 +82,12 @@ defevhs["segment_request"] =
 			end
 	 end
 
-defevhs["cursorhint"] =
-	 function(wnd, source, stat)
-	 end
-
 function group_handler(source, status)
 	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
+			print("group_handler called:")
+			print(dump(status))
+			print(dump(source))
 			defevhs[status.kind](wnd, source, status)
 	 end
 end
@@ -191,7 +189,7 @@ function windows_linear(hide_hidden)
 	 return res
 end
 
-function reorder_windows()
+local function reorder_windows()
 	 for i,v in ipairs(wndlist) do
 			order_image(v.anchor, (i+1) * 10)
 	 end
@@ -339,7 +337,7 @@ function set_trigger_point(ctx, vid)
 	 }
 end
 
-function decor_v_drag(ctx, vid, dx, dy)
+local function decor_v_drag(ctx, vid, dx, dy)
 	 if (ctx.wnd ~= wm.window) then
 			return
 	 end
@@ -388,7 +386,7 @@ local function decor_drop(ctx)
 	 end
 end
 
-function decor_h_drag(ctx, vid, dx, dy)
+local function decor_h_drag(ctx, vid, dx, dy)
 	 if (ctx.wnd ~= wm.window) then
 			return
 	 end
@@ -464,22 +462,6 @@ local function decor_h_over(ctx, vid, x, y)
 	 else
 			ctx.diag = 0
 			mouse_switch_cursor(ctx.ul_near and "rz_up" or "rz_down")
-	 end
-end
-
-local function get_maximize_dir()
-	 local x, y = mouse_xy()
-	 if (x <= 5) then
-			return "l"
-	 end
-	 if (x >= VRESW-5) then
-			return "r"
-	 end
-	 if (y <= 5) then
-			return "t"
-	 end
-	 if (y >= VRESH-5) then
-			return "b"
 	 end
 end
 
@@ -654,7 +636,7 @@ local function window_resize(wnd, neww, newh, nofwd)
 			}
 	 end
 
-	 for k,v in ipairs(wnd.event_hooks) do
+	 for _,v in ipairs(wnd.event_hooks) do
 			v(wnd, "resize")
 	 end
 end
@@ -665,7 +647,6 @@ local function find_nearest(bp_x, bp_y, dir)
 			local props = image_surface_resolve_properties(v.canvas)
 			local cx = bp_x - (props.x + 0.5 * props.width)
 			local cy = bp_y - (props.y + 0.5 * props.height)
-			local dist
 			if (dir) then
 				 if (dir == "t" and cy > 0) then
 						table.insert(lst, {wnd = v, dist = cy})
@@ -851,9 +832,6 @@ local function window_destroy(wnd)
 			end
 	 end
 
-	 -- Remove from tags list
-	 local window_id = wnd.id -- Get the window ID
-
 	 for t, tag in pairs(wm.tags) do
 			for j, c in ipairs(tag) do
 				 if c == wnd then
@@ -979,7 +957,7 @@ local function window_mousemotion(ctx, vid, x, y)
 
 	 -- relative or absolute? for absolute, we need to scale
 	 target_input(ctx.target, outm)
-	 outm.samples[1] = y - props.y
+	 outm.samples[2] = y - props.y -- TODO: duno if this is totally correct
 	 outm.subid = 1
 	 target_input(ctx.target, outm)
 end
@@ -1014,19 +992,6 @@ local function window_drag_end(wnd)
 end
 
 local function window_mousebutton(ctx, devid, ind, act)
-	 -- trick to avoid spurious "release" events being forwarded
-	 if (ctx == wm.window) then
-			if (wm.window.tab_cooldown) then
-				 wm.window.tab_cooldown = nil
-				 return
-			end
-	 else
-			if (act) then
-				 ctx:select()
-			end
-			return
-	 end
-
 	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
 			window_drag_start(ctx, mouse_xy())
 			return -- Prevent further processing
@@ -1110,12 +1075,7 @@ local function window_paste(wnd, msg)
 			end
 
 			wnd.clipboard_out = tgt_clip
-			if (wnd.active_tab) then
-				 wnd.active_tab.clipboard_out = tgt_clip
-				 link_image(tgt_clip, wnd.active_tab.vid)
-			else
-				 link_image(wnd.clipboard_out, wnd.anchor)
-			end
+			link_image(wnd.clipboard_out, wnd.anchor)
 	 end
 
 	 -- slightly incorrect as target_input can come up short, the
@@ -1401,10 +1361,7 @@ function new_window(vid, aid, opts)
 	 show_image(vid)
 	 resize_image(vid, opts.w, opts.h)
 
-	 window_id_counter = window_id_counter + 1 -- Increment the counter
 	 local wnd = {
-			-- TODO: windows id from deleted windows are not reasigned as avaliable
-			id = window_id_counter, -- Assign the current counter value as the ID
 			name = "awm_window",
 			anchor = anchor,
 			canvas = vid,
@@ -1452,12 +1409,10 @@ function new_window(vid, aid, opts)
 
 			-- projectable toggles
 			delete_protect = opts.delete_protect,
-			tab_block = opts.tab_block,
 			select_block = opts.select_block,
 
 			-- toggles
 			-- force_size = opts.force_size,
-			force_size = true,
 			autocrop = opts.autocrop,
 			flip_y = opts.flip_y,
 
@@ -1469,6 +1424,7 @@ function new_window(vid, aid, opts)
 			height = opts.h,
 			x = opts.x,
 			y = opts.y,
+			force_size = true,
 	 }
 
 	 if (not opts.no_decor) then

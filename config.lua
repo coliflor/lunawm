@@ -8,7 +8,7 @@ return {
 	 conn_point = "awm",
 
 	 -- statusbar
-	 statusbar_height = 20,
+	 statusbar_height = 30,
 	 statusbar_position = "top", --bottom
 
 	 -- input tuning

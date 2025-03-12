@@ -65,7 +65,32 @@ variables.view_tag = function(tag)
 	 end
 end
 
+local function assign_tag(tag_index, wnd)
+	 if not wnd then
+			return -- No window provided
+	 end
+
+	 -- Check if the window is already in the tag
+	 local found = false
+	 local found_index = nil
+	 for i, existing_wnd in ipairs(wm.tags[tag_index]) do
+			if existing_wnd == wnd then
+				 found = true
+				 found_index = i
+				 break
+			end
+	 end
+
+	 if found then
+			return
+	 else
+			-- Add the window to the tag if it's not already there
+			table.insert(wm.tags[tag_index], wnd)
+	 end
+end
+
 -- window position for a particular tag
+-- TODO: this is garbage calling wnd:move(x, y)
 variables.window_pos = function(aident, atag, pos_x, pos_y)
 	 local ident = tostring(aident)
 	 local x = tonumber(pos_x)
@@ -73,43 +98,71 @@ variables.window_pos = function(aident, atag, pos_x, pos_y)
 	 local tag = tonumber(atag)
 
 	 if wm.windows then
-			for _, wnd in pairs(wm.windows) do -- Use pairs here
+			for _, wnd in pairs(wm.windows) do
 				 if wnd.ident == ident then
+						assign_tag(tag, wnd) -- Assign the window to the tag first
 						wnd.force_size = false
-						wnd.tags[tag] = {
-							 width = wnd.tags[tag].width,
-							 height = wnd.tags[tag].height,
-							 x = x,
-							 y = y,
-						}
 						wnd:move(x, y)
+						-- wnd.tags[tag] = {
+						-- 	 width = wnd.tags[tag].width,
+						-- 	 height = wnd.tags[tag].height,
+						-- 	 x = x,
+						-- 	 y = y,
+						-- }
 				 end
 			end
-			arrange()
+	 else
+			print("Error: wm.windows is nil.")
 	 end
 end
 
 -- window size for a particular tag
+-- TODO: this is garbage calling wnd:resize(width, height)
 variables.window_size = function(aident, atag, awidth, aheight)
 	 local ident = tostring(aident)
-	 local width = tonumber(awidth)
-	 local height = tonumber(aheight)
 	 local tag = tonumber(atag)
 
+	 local function resolve_value(val)
+			if type(val) == "string" then
+				 local global_val = _G[val]
+				 if type(global_val) == "number" then
+						return global_val
+				 else
+						local num_val = tonumber(val)
+						if num_val then
+							 return num_val
+						else
+							 return nil
+						end
+				 end
+			else
+				 return tonumber(val)
+			end
+	 end
+
+	 local width = resolve_value(awidth)
+	 local height = resolve_value(aheight)
+
+	 if width == nil or height == nil then
+			print("Error: Invalid width or height provided.")
+			return
+	 end
+
 	 if wm.windows then
-			for _, wnd in pairs(wm.windows) do -- Use pairs here
+			for _, wnd in pairs(wm.windows) do
 				 if wnd.ident == ident then
-						wnd.force_size = false
-						wnd.tags[tag] = {
-							 width = width,
-							 height = height,
-							 x = wnd.tags[tag].x,
-							 y = wnd.tags[tag].y,
-						}
+						assign_tag(tag, wnd) -- Assign the window to the tag first
 						wnd:resize(width, height)
+						-- wnd.tags[tag] = {
+						-- 	 width = width,
+						-- 	 height = height,
+						-- 	 x = wnd.tags[tag].x,
+						-- 	 y = wnd.tags[tag].y,
+						-- }
 				 end
 			end
-			arrange()
+	 else
+			print("Error: wm.windows is nil.")
 	 end
 end
 

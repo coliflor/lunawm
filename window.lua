@@ -1,5 +1,4 @@
 local dirtbl = {"l", "r", "t", "b"}
-local window_id_counter = 0 -- Initialize a counter for window IDs
 local wndlist = {}
 local hidden = {}
 
@@ -135,13 +134,19 @@ function client_event_handler(source, status)
 				 y = 0,
 				 w = 32,
 				 h = 32,
-				 force_size = wm.cfg.force_size,
 				 autocrop = true,
 			}
 
 			local wnd = setup_wnd(source, status.source_audio, proptbl)
 
 			table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
+
+			-- Ensure wnd.tags[tag_index] exists before assigning force_size
+			if not wnd.tags[wm.current_tag] then
+				 wnd.tags[wm.current_tag] = {}
+			end
+
+			wnd.tags[wm.current_tag].force_size = true
 
 			arrange() -- Call arrange after adding the window
 
@@ -282,7 +287,7 @@ local function resize_move(ctx, dx, dy, move, inx, iny)
 
 	 -- this will look "jittery" if target is slow to resize or we
 	 -- don't autocrop
-	 if (wnd.autocrop or wnd.force_size or not
+	 if (wnd.autocrop or wnd.tags[wm.current_tag].force_size or not
 			 valid_vid(wnd.target, TYPE_FRAMESERVER)) then
 			wnd:resize(neww, newh)
 			move_image(wnd.anchor, nx, ny)
@@ -964,8 +969,8 @@ end
 
 local function window_drag_start(wnd, x, y)
 
-	 if wnd.force_size == true then
-			wnd.force_size = false
+	 if wnd.tags[wm.current_tag].force_size == true then
+			wnd.tags[wm.current_tag].force_size = false
 			arrange()
 	 end
 
@@ -1089,8 +1094,7 @@ end
 -- window arrange functions
 -- ----------------------------------------------------
 
-local function arrange_floating()
-	 local tag = wm.tags and wm.tags[wm.current_tag] or {}
+local function arrange_floating(tag)
 	 local n = #tag
 
 	 if n == 0 then return end
@@ -1103,7 +1107,7 @@ local function arrange_monocle(tag)
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
-			if wnd.force_size == true then
+			if wnd.tags[wm.current_tag].force_size == true then
 				 table.insert(visible_windows, wnd)
 			end
 	 end
@@ -1132,7 +1136,7 @@ local function arrange_grid(tag)
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
-			if wnd.force_size == true then
+			if wnd.tags[wm.current_tag].force_size == true then
 				 table.insert(visible_windows, wnd)
 			end
 	 end
@@ -1173,11 +1177,10 @@ local function arrange_master_middle_stack(tag)
 	 local statusbar_height = wm.cfg.statusbar_height or 20
 	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 	 local gap = wm.cfg.window_gap or 5
-	 local master_ratio = wm.cfg.master_ratio or 0.5 -- Add default master_ratio
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
-			if wnd.force_size == true then
+			if wnd.tags[wm.current_tag].force_size == true then
 				 table.insert(visible_windows, wnd)
 			end
 	 end
@@ -1192,6 +1195,8 @@ local function arrange_master_middle_stack(tag)
 			arrange_monocle(visible_windows)
 			return
 	 end
+
+	 local master_ratio = wm.tags[wm.current_tag].master_ratio or 0.5
 
 	 local master_area_w = VRESW * master_ratio
 	 local master_area_h = VRESH - statusbar_height
@@ -1262,11 +1267,10 @@ local function arrange_master_stack(tag)
 	 local statusbar_height = wm.cfg.statusbar_height or 20
 	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 	 local gap = wm.cfg.window_gap or 5
-	 local master_ratio = wm.cfg.master_ratio or 0.5 -- Add default master_ratio
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
-			if wnd.force_size == true then
+			if wnd.tags[wm.current_tag] and wnd.tags[wm.current_tag].force_size == true then
 				 table.insert(visible_windows, wnd)
 			end
 	 end
@@ -1281,6 +1285,8 @@ local function arrange_master_stack(tag)
 			arrange_monocle(visible_windows)
 			return
 	 end
+
+	 local master_ratio = wm.tags[wm.current_tag].master_ratio or 0.5
 
 	 local master_area_w = VRESW * master_ratio
 	 local master_area_h = VRESH - statusbar_height
@@ -1324,13 +1330,15 @@ function arrange()
 
 	 if n == 0 then return end
 
-	 if wm.cfg.layout_mode == "monocle" then
+	 local layout_mode = wm.tags[wm.current_tag].layout_mode or wm.cfg.layout_mode -- Get tag's layout_mode or default
+
+	 if layout_mode == "monocle" then
 			arrange_monocle(tag)
-	 elseif wm.cfg.layout_mode == "middle_stack" then
+	 elseif layout_mode == "middle_stack" then
 			arrange_master_middle_stack(tag)
-	 elseif wm.cfg.layout_mode == "grid" then
+	 elseif layout_mode == "grid" then
 			arrange_grid(tag)
-	 elseif wm.cfg.layout_mode == "floating" then
+	 elseif layout_mode == "floating" then
 			arrange_floating(tag)
 	 else -- Default to the existing master/stack layout
 			arrange_master_stack(tag)
@@ -1338,7 +1346,7 @@ function arrange()
 end
 
 function set_layout_mode(mode)
-	 wm.cfg.layout_mode = mode
+	 wm.tags[wm.current_tag].layout_mode = mode
 	 arrange() -- Re-arrange windows after changing layout
 end
 
@@ -1412,20 +1420,24 @@ function new_window(vid, aid, opts)
 			select_block = opts.select_block,
 
 			-- toggles
-			-- force_size = opts.force_size,
 			autocrop = opts.autocrop,
 			flip_y = opts.flip_y,
 
 			tags = {},
 	 }
 
-	 wnd.tags[wm.current_tag] = {
-			width = opts.w,
-			height = opts.h,
-			x = opts.x,
-			y = opts.y,
-			force_size = true,
-	 }
+	 -- Initialize tags with default values
+	 for i = 1, wm.cfg.num_tags do
+			wnd.tags[i] = {
+				 width = opts.w,
+				 height = opts.h,
+				 x = opts.x,
+				 y = opts.y,
+				 force_size = true,
+				 layout_mode = wm.cfg.default_layout_mode,
+				 master_ratio = wm.cfg.default_master_ratio,
+			}
+	 end
 
 	 if (not opts.no_decor) then
 			build_decorations(wnd, opts)

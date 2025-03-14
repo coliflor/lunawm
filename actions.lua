@@ -14,45 +14,45 @@ actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
 function view_tag(tag_number)
-    if wm.current_tag == tag_number then
-        return -- Do nothing if already on the target tag
-    end
+	 if wm.current_tag == tag_number then
+			return -- Do nothing if already on the target tag
+	 end
 
-    wm.last_tag = wm.current_tag
-    wm.current_tag = tag_number
+	 wm.last_tag = wm.current_tag
+	 wm.current_tag = tag_number
 
-    local target_windows = wm.tags[tag_number] or {}
+	 local target_windows = wm.tags[tag_number] or {}
 
-    for _, wnd in ipairs(target_windows) do
-        if wnd and type(wnd.show) == "function" then
-            update_window_dimensions(wnd, tag_number)
-            wnd:show()
-        end
-    end
+	 for _, wnd in ipairs(target_windows) do
+			if wnd and type(wnd.show) == "function" then
+				 update_window_dimensions(wnd, tag_number)
+				 wnd:show()
+			end
+	 end
 
-    local all_windows = windows_linear(false) or {} -- TODO: replace this function?
+	 local all_windows = windows_linear(false) or {} -- TODO: replace this function?
 
-    local hide_list = {}
-    for _, wnd in ipairs(all_windows) do
-        local found = false
-        for _, target_wnd in ipairs(target_windows) do
-            if wnd == target_wnd then
-                found = true
-                break
-            end
-        end
-        if not found then
-            table.insert(hide_list, wnd)
-        end
-    end
+	 local hide_list = {}
+	 for _, wnd in ipairs(all_windows) do
+			local found = false
+			for _, target_wnd in ipairs(target_windows) do
+				 if wnd == target_wnd then
+						found = true
+						break
+				 end
+			end
+			if not found then
+				 table.insert(hide_list, wnd)
+			end
+	 end
 
-    for _, wnd in ipairs(hide_list) do
-        if wnd and type(wnd.hide) == "function" then
-            wnd:hide()
-        end
-    end
+	 for _, wnd in ipairs(hide_list) do
+			if wnd and type(wnd.hide) == "function" then
+				 wnd:hide()
+			end
+	 end
 
-    arrange()
+	 arrange()
 end
 
 local function swap_last_current_tag()
@@ -71,9 +71,11 @@ local function swap_last_current_tag()
 end
 
 function update_window_dimensions(wnd, tag)
-	 if wnd.tags[tag] then
-			wnd:resize(wnd.tags[tag].width, wnd.tags[tag].height)
-			wnd:move(wnd.tags[tag].x, wnd.tags[tag].y)
+	 if not wnd.tags[tag] == nil or not wnd.tags[tag] == {} then
+			if wnd.tags[tag].width ~= nil or wnd.tags[tag].width ~= nil then
+				 wnd:resize(wnd.tags[tag].width, wnd.tags[tag].height)
+				 wnd:move(wnd.tags[tag].x, wnd.tags[tag].y)
+			end
 	 end
 end
 
@@ -317,18 +319,36 @@ end
 
 -- Function to increase master window width
 actions.increase_master_width = function()
-	 wm.cfg.master_ratio = math.min(wm.cfg.master_ratio + 0.05, 0.95) -- Increase by 5%, limit to 95%
-	 print("Master ratio increased to:", wm.cfg.master_ratio)
-	 arrange()
-end
+    local current_tag_data = wm.tags[wm.current_tag]
 
+    if current_tag_data then
+        if current_tag_data.master_ratio == nil then
+            current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
+        end
+
+        current_tag_data.master_ratio = math.min(current_tag_data.master_ratio + 0.05, 0.95) -- Increase by 5%, limit to 95%
+        print("Master ratio for tag", wm.current_tag, "increased to:", current_tag_data.master_ratio)
+        arrange()
+    else
+        print("Error: Current tag data not found.")
+    end
+end
 -- Function to decrease master window width
 actions.decrease_master_width = function()
-	 wm.cfg.master_ratio = math.max(wm.cfg.master_ratio - 0.05, 0.10) -- Decrease by 5%, limit to 10%
-	 print("Master ratio decreased to:", wm.cfg.master_ratio)
-	 arrange()
-end
+    local current_tag_data = wm.tags[wm.current_tag]
 
+    if current_tag_data then
+        if current_tag_data.master_ratio == nil then
+            current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
+        end
+
+        current_tag_data.master_ratio = math.max(current_tag_data.master_ratio - 0.05, 0.10) -- Decrease by 5%, limit to 10%
+        print("Master ratio for tag", wm.current_tag, "decreased to:", current_tag_data.master_ratio)
+        arrange()
+    else
+        print("Error: Current tag data not found.")
+    end
+end
 local function assign_tag(tag_index, wnd)
 	 if not wnd then
 			return -- No window provided
@@ -478,8 +498,8 @@ actions.move_window_to_tag_3 = wrun(function(wnd) move_window_to_tag(wnd, 3) end
 actions.move_window_to_tag_4 = wrun(function(wnd) move_window_to_tag(wnd, 4) end)
 actions.move_window_to_tag_5 = wrun(function(wnd) move_window_to_tag(wnd, 5) end)
 
-actions.window_stacked = wrun(function(wnd)  wnd.force_size = true arrange()  end)
-actions.window_floating = wrun(function(wnd) wnd.force_size = false arrange() end)
+actions.window_stacked = wrun(function(wnd)  wnd.tags[wm.current_tag].force_size = true arrange()  end)
+actions.window_floating = wrun(function(wnd) wnd.tags[wm.current_tag].force_size = false arrange() end)
 
 -- actions["terminal"] = actions.terminal
 

@@ -101,7 +101,7 @@ variables.window_pos = function(aident, atag, pos_x, pos_y)
 			for _, wnd in pairs(wm.windows) do
 				 if wnd.ident == ident then
 						assign_tag(tag, wnd) -- Assign the window to the tag first
-						wnd.force_size = false
+						wnd.tags[tag].force_size = false
 						wnd:move(x, y)
 						-- wnd.tags[tag] = {
 						-- 	 width = wnd.tags[tag].width,
@@ -152,6 +152,7 @@ variables.window_size = function(aident, atag, awidth, aheight)
 			for _, wnd in pairs(wm.windows) do
 				 if wnd.ident == ident then
 						assign_tag(tag, wnd) -- Assign the window to the tag first
+						wnd.tags[tag].force_size = false
 						wnd:resize(width, height)
 						-- wnd.tags[tag] = {
 						-- 	 width = width,

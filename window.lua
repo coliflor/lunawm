@@ -997,7 +997,6 @@ local function window_drag_end(wnd)
 end
 
 local function window_mousebutton(ctx, devid, ind, act)
-	 print("mousebutton: ", ind)
 	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
 			window_drag_start(ctx, mouse_xy())
 			return -- Prevent further processing
@@ -1008,11 +1007,62 @@ local function window_mousebutton(ctx, devid, ind, act)
 			return -- Prevent further processing
 	 end
 
+	 -- Window swapping logic
+	 if (act and ind == 2 and wm.mod_key_pressed) then -- Modkey + Left Click (ind == 2)
+			if (wm.swap_window1 == nil) then
+				 -- First window selection
+				 wm.swap_window1 = ctx
+				 print("Selected first window for swap.")
+			elseif (wm.swap_window1 ~= ctx) then
+				 -- Second window selection and swap
+				 local window1 = wm.swap_window1
+				 local window2 = ctx
+
+				 if window1 and window2 then
+						-- Perform the swap
+						local tag = wm.tags[wm.current_tag]
+
+						if tag then
+							 local index1 = nil
+							 local index2 = nil
+
+							 -- Find the indices of the windows in the tag
+							 for i, wnd in ipairs(tag) do
+									if wnd == window1 then
+										 index1 = i
+									elseif wnd == window2 then
+										 index2 = i
+									end
+							 end
+
+							 if index1 and index2 then
+									-- Swap the windows in the tag
+									tag[index1], tag[index2] = tag[index2], tag[index1]
+									print("Swapped windows.")
+									arrange() -- Re-arrange windows
+							 else
+									print("One or both windows not found in tag.")
+							 end
+						else
+							 print("Current tag not found.")
+						end
+				 else
+						print("One or both swap windows were nil")
+				 end
+
+				 -- Reset swap state
+				 wm.swap_window1 = nil
+			else
+				 print("Cannot swap a window with itself")
+				 wm.swap_window1 = nil
+			end
+			return -- Prevent further processing
+	 end
+
 	 if (ctx.mouse_btns and ctx.mouse_btns[ind] ~= act) then
 			ctx.mouse_btns[ind] = act
 			if (valid_vid(ctx.target, TYPE_FRAMESERVER)) then
-				 target_input(ctx.target, {digital = true, mouse = true,
-																	 devid = 0, subid = ind, active = act})
+				 target_input(ctx.target, {digital = true, mouse = true, devid = 0, subid = ind, active = act})
 			end
 	 end
 end

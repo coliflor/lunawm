@@ -997,6 +997,7 @@ local function window_drag_end(wnd)
 end
 
 local function window_mousebutton(ctx, devid, ind, act)
+	 print("mousebutton: ", ind)
 	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
 			window_drag_start(ctx, mouse_xy())
 			return -- Prevent further processing
@@ -1090,258 +1091,20 @@ local function window_paste(wnd, msg)
 	 end
 end
 
--- ----------------------------------------------------
--- window arrange functions
--- ----------------------------------------------------
-
-local function arrange_floating(tag)
-	 local n = #tag
-
-	 if n == 0 then return end
-end
-
-local function arrange_monocle(tag)
-	 local gap = wm.cfg.window_gap or 5
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
-
-	 local visible_windows = {}
-	 for _, wnd in ipairs(tag) do
-			if wnd.tags[wm.current_tag].force_size == true then
-				 table.insert(visible_windows, wnd)
-			end
-	 end
-
-	 local n = #visible_windows
-
-	 for i = 1, n do
-			local wnd = visible_windows[i]
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
-
-			local wnd_y = wnd.margin.t + gap / 2
-			if statusbar_position == "top" then
-				 wnd_y = wnd_y + statusbar_height
-			end
-
-			wnd:move(wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(VRESW - pad_w - gap, VRESH - statusbar_height - pad_h - gap)
-	 end
-end
-
-local function arrange_grid(tag)
-	 local gap = wm.cfg.window_gap or 5
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
-
-	 local visible_windows = {}
-	 for _, wnd in ipairs(tag) do
-			if wnd.tags[wm.current_tag].force_size == true then
-				 table.insert(visible_windows, wnd)
-			end
-	 end
-
-	 local n = #visible_windows
-
-	 local cols = math.ceil(math.sqrt(n))
-	 local rows = math.ceil(n / cols)
-
-	 local tile_width = VRESW / cols
-	 local tile_height = (VRESH - statusbar_height) / rows
-
-	 local index = 1
-	 for row = 1, rows do
-			for col = 1, cols do
-				 if index <= n then
-						local wnd = visible_windows[index]
-						local pad_w = wnd.margin.l + wnd.margin.r
-						local pad_h = wnd.margin.t + wnd.margin.b
-
-						local x = (col - 1) * tile_width + wnd.margin.l + gap / 2
-						local y = (row - 1) * tile_height + wnd.margin.t + gap / 2
-
-						if statusbar_position == "top" then
-							 y = y + statusbar_height
-						end
-
-						wnd:move(x, y)
-						wnd:resize(tile_width - pad_w - gap, tile_height - pad_h - gap)
-
-						index = index + 1
-				 end
-			end
-	 end
-end
-
-local function arrange_master_middle_stack(tag)
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
-	 local gap = wm.cfg.window_gap or 5
-
-	 local visible_windows = {}
-	 for _, wnd in ipairs(tag) do
-			if wnd.tags[wm.current_tag].force_size == true then
-				 table.insert(visible_windows, wnd)
-			end
-	 end
-
-	 local n = #visible_windows
-
-	 if n == 0 then
-			return
-	 end
-
-	 if n == 1 then
-			arrange_monocle(visible_windows)
-			return
-	 end
-
-	 local master_ratio = wm.tags[wm.current_tag].master_ratio or 0.5
-
-	 local master_area_w = VRESW * master_ratio
-	 local master_area_h = VRESH - statusbar_height
-	 local stack_area_w = (VRESW - master_area_w) / 2
-	 local stack_area_h = VRESH - statusbar_height
-
-	 -- Master window (n > 1)
-	 local master = visible_windows[1]
-	 local pad_w = master.margin.l + master.margin.r
-	 local pad_h = master.margin.t + master.margin.b
-
-	 local master_y = master.margin.t + gap / 2
-	 if statusbar_position == "top" then
-			master_y = master_y + statusbar_height
-	 end
-
-	 master:move((VRESW - master_area_w) / 2 + master.margin.l + gap / 2, master_y)
-	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
-
-	 -- Stack windows (n > 1)
-	 local left_stack = {}
-	 local right_stack = {}
-
-	 for i = 2, n do
-			if i % 2 == 0 then
-				 table.insert(left_stack, visible_windows[i])
-			else
-				 table.insert(right_stack, visible_windows[i])
-			end
-	 end
-
-	 local left_n = #left_stack
-	 local right_n = #right_stack
-
-	 local left_stack_h = (stack_area_h - (left_n - 1) * gap) / left_n
-	 local right_stack_h = (stack_area_h - (right_n - 1) * gap) / right_n
-
-	 -- Left Stack
-	 for i, wnd in ipairs(left_stack) do
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
-
-			local wnd_y = (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
-			if statusbar_position == "top" then
-				 wnd_y = wnd_y + statusbar_height
-			end
-
-			wnd:move(wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(stack_area_w - pad_w - gap, left_stack_h - pad_h - gap)
-	 end
-
-	 -- Right Stack
-	 for i, wnd in ipairs(right_stack) do
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
-
-			local wnd_y = (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap
-			if statusbar_position == "top" then
-				 wnd_y = wnd_y + statusbar_height
-			end
-
-			wnd:move(VRESW - stack_area_w + wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(stack_area_w - pad_w - gap, right_stack_h - pad_h - gap)
-	 end
-end
-
-local function arrange_master_stack(tag)
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
-	 local gap = wm.cfg.window_gap or 5
-
-	 local visible_windows = {}
-	 for _, wnd in ipairs(tag) do
-			if wnd.tags[wm.current_tag] and wnd.tags[wm.current_tag].force_size == true then
-				 table.insert(visible_windows, wnd)
-			end
-	 end
-
-	 local n = #visible_windows
-
-	 if n == 0 then
-			return
-	 end
-
-	 if n == 1 then
-			arrange_monocle(visible_windows)
-			return
-	 end
-
-	 local master_ratio = wm.tags[wm.current_tag].master_ratio or 0.5
-
-	 local master_area_w = VRESW * master_ratio
-	 local master_area_h = VRESH - statusbar_height
-	 local stack_area_x = master_area_w
-	 local stack_area_w = VRESW - master_area_w
-	 local stack_area_h = VRESH - statusbar_height
-
-	 -- Master window (n > 1)
-	 local master = visible_windows[1]
-	 local pad_w = master.margin.l + master.margin.r
-	 local pad_h = master.margin.t + master.margin.b
-
-	 local master_y = master.margin.t + gap / 2
-	 if statusbar_position == "top" then
-			master_y = master_y + statusbar_height
-	 end
-
-	 master:move(master.margin.l + gap / 2, master_y)
-	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
-
-	 -- Stack windows (n > 1)
-	 local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
-	 for i = 2, n do
-			local wnd = visible_windows[i]
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
-
-			local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap
-			if statusbar_position == "top" then
-				 wnd_y = wnd_y + statusbar_height
-			end
-
-			wnd:move(stack_area_x + wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)
-	 end
-end
-
 function arrange()
 	 local tag = wm.tags and wm.tags[wm.current_tag] or {}
 	 local n = #tag
 
 	 if n == 0 then return end
 
-	 local layout_mode = wm.tags[wm.current_tag].layout_mode or wm.cfg.layout_mode -- Get tag's layout_mode or default
+	 local layout_mode = wm.tags[wm.current_tag].layout_mode or wm.cfg.layout_mode
 
-	 if layout_mode == "monocle" then
-			arrange_monocle(tag)
-	 elseif layout_mode == "middle_stack" then
-			arrange_master_middle_stack(tag)
-	 elseif layout_mode == "grid" then
-			arrange_grid(tag)
-	 elseif layout_mode == "floating" then
-			arrange_floating(tag)
-	 else -- Default to the existing master/stack layout
-			arrange_master_stack(tag)
+	 local arranger = arrangers[layout_mode]
+
+	 if arranger then
+			arranger(tag)
+	 else
+			arrangers.master_stack(tag) -- Default to master_stack if not found
 	 end
 end
 

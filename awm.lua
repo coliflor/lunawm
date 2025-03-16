@@ -35,6 +35,14 @@ function awm()
 	 system_load("ipc.lua")()
 	 wm.bindings = system_load("keybindings.lua")() -- keysym+mods -> actions
 
+	 arrangers = {
+			floating = system_load("arrange/floating.lua")(),
+			monocle = system_load("arrange/monocle.lua")(),
+			grid = system_load("arrange/grid.lua")(),
+			master_middle_stack = system_load("arrange/master_midle_stack.lua")(),
+			master_stack = system_load("arrange/master_stack.lua")(),
+	 }
+
 	 -- Initialize tags:
 	 for i = 1, wm.cfg.num_tags do
 			wm.tags[i] = {}
@@ -219,11 +227,11 @@ function dump(o)
 end
 
 function toboolean(str)
-    local bool = false
-    if str == "true" then
-        bool = true
-    end
-    return bool
+	 local bool = false
+	 if str == "true" then
+			bool = true
+	 end
+	 return bool
 end
 
 awm_input = awm_normal_input

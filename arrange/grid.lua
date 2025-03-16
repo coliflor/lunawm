@@ -1,7 +1,9 @@
 local function arrange_grid(tag)
 	 local gap = wm.cfg.window_gap or 5
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local gap_top = wm.cfg.window_gap_top or 0
+	 local gap_bottom = wm.cfg.window_gap_bottom or 0
+	 local gap_left = wm.cfg.window_gap_left or 0
+	 local gap_right = wm.cfg.window_gap_right or 0
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
@@ -15,8 +17,8 @@ local function arrange_grid(tag)
 	 local cols = math.ceil(math.sqrt(n))
 	 local rows = math.ceil(n / cols)
 
-	 local tile_width = VRESW / cols
-	 local tile_height = (VRESH - statusbar_height) / rows
+	 local tile_width = (VRESW - gap_left - gap_right) / cols
+	 local tile_height = (VRESH - gap_top - gap_bottom) / rows
 
 	 local index = 1
 	 for row = 1, rows do
@@ -26,12 +28,8 @@ local function arrange_grid(tag)
 						local pad_w = wnd.margin.l + wnd.margin.r
 						local pad_h = wnd.margin.t + wnd.margin.b
 
-						local x = (col - 1) * tile_width + wnd.margin.l + gap / 2
-						local y = (row - 1) * tile_height + wnd.margin.t + gap / 2
-
-						if statusbar_position == "top" then
-							 y = y + statusbar_height
-						end
+						local x = (col - 1) * tile_width + wnd.margin.l + gap / 2 + gap_left
+						local y = (row - 1) * tile_height + wnd.margin.t + gap / 2 + gap_top
 
 						wnd:move(x, y)
 						wnd:resize(tile_width - pad_w - gap, tile_height - pad_h - gap)

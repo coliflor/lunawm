@@ -1,7 +1,9 @@
 local function arrange_monocle(tag)
 	 local gap = wm.cfg.window_gap or 5
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
+	 local gap_top = wm.cfg.window_gap_top or 0
+	 local gap_bottom = wm.cfg.window_gap_bottom or 0
+	 local gap_left = wm.cfg.window_gap_left or 0
+	 local gap_right = wm.cfg.window_gap_right or 0
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
@@ -17,13 +19,10 @@ local function arrange_monocle(tag)
 			local pad_w = wnd.margin.l + wnd.margin.r
 			local pad_h = wnd.margin.t + wnd.margin.b
 
-			local wnd_y = wnd.margin.t + gap / 2
-			if statusbar_position == "top" then
-				 wnd_y = wnd_y + statusbar_height
-			end
+			local wnd_y = wnd.margin.t + gap / 2 + gap_top
 
-			wnd:move(wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(VRESW - pad_w - gap, VRESH - statusbar_height - pad_h - gap)
+			wnd:move(wnd.margin.l + gap / 2 + gap_left, wnd_y)
+			wnd:resize(VRESW - pad_w - gap - gap_left - gap_right, VRESH - pad_h - gap - gap_top - gap_bottom)
 	 end
 end
 

@@ -27,18 +27,48 @@ variables.border = function(value)
 	 arrange()
 end
 
--- statusbar_height
-variables.statusbar_height = function(value)
-	 local statusbar_height = tonumber(value)
-	 if statusbar_height then
-			print("Setting statusbar_height to:", statusbar_height)
-			wm.cfg.statusbar_height = statusbar_height
-	 else
-			print("Invalid statusbar_height value:", statusbar_height)
-	 end
-	 arrange()
-end
+-- window gaps
+variables.window_gaps = function(left, right, top, bottom)
+    local gap_left = tonumber(left)
+    local gap_right = tonumber(right)
+    local gap_top = tonumber(top)
+    local gap_bottom = tonumber(bottom)
 
+    local valid = true
+
+    if gap_left then
+        wm.cfg.window_gap_left = gap_left
+    else
+        print("Invalid window_gap_left value:", left)
+        valid = false
+    end
+
+    if gap_right then
+        wm.cfg.window_gap_right = gap_right
+    else
+        print("Invalid window_gap_right value:", right)
+        valid = false
+    end
+
+    if gap_top then
+        wm.cfg.window_gap_top = gap_top
+    else
+        print("Invalid window_gap_top value:", top)
+        valid = false
+    end
+
+    if gap_bottom then
+        wm.cfg.window_gap_bottom = gap_bottom
+    else
+        print("Invalid window_gap_bottom value:", bottom)
+        valid = false
+    end
+
+    if valid then
+        print("Setting window_gaps to: left=", gap_left, ", right=", gap_right, ", top=", gap_top, ", bottom=", gap_bottom)
+        arrange()
+    end
+end
 -- fuse_tags
 variables.fuse_tags = function(tag_one, tag_two)
 	 local tone = tonumber(tag_one)
@@ -185,7 +215,7 @@ end
 
 -- variables["gaps"] = variables.gaps
 -- variables["border"] = variables.border
--- variables["statusbar_height"] = variables.statusbar_height
+-- variables["window_gaps"] = variables.window_gaps
 -- variables["fuse_tags"] = variables.fuse_tags
 -- variables["view_tag"] = variables.view_tag
 -- variables["window_pos"] = variables.window_pos

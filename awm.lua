@@ -39,7 +39,7 @@ function awm()
 			floating = system_load("arrange/floating.lua")(),
 			monocle = system_load("arrange/monocle.lua")(),
 			grid = system_load("arrange/grid.lua")(),
-			master_middle_stack = system_load("arrange/master_midle_stack.lua")(),
+			middle_stack = system_load("arrange/master_midle_stack.lua")(),
 			master_stack = system_load("arrange/master_stack.lua")(),
 	 }
 

@@ -1,7 +1,9 @@
 local function arrange_master_stack(tag)
-	 local statusbar_height = wm.cfg.statusbar_height or 20
-	 local statusbar_position = wm.cfg.statusbar_position or "bottom"
 	 local gap = wm.cfg.window_gap or 5
+	 local gap_top = wm.cfg.window_gap_top or 0
+	 local gap_bottom = wm.cfg.window_gap_bottom or 0
+	 local gap_left = wm.cfg.window_gap_left or 0
+	 local gap_right = wm.cfg.window_gap_right or 0
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
@@ -23,23 +25,20 @@ local function arrange_master_stack(tag)
 
 	 local master_ratio = wm.tags[wm.current_tag].master_ratio or 0.5
 
-	 local master_area_w = VRESW * master_ratio
-	 local master_area_h = VRESH - statusbar_height
-	 local stack_area_x = master_area_w
-	 local stack_area_w = VRESW - master_area_w
-	 local stack_area_h = VRESH - statusbar_height
+	 local master_area_w = VRESW * master_ratio - gap_left - gap_right
+	 local master_area_h = VRESH - gap_top - gap_bottom
+	 local stack_area_x = master_area_w + gap_left
+	 local stack_area_w = VRESW - master_area_w - gap_left - gap_right
+	 local stack_area_h = VRESH - gap_top - gap_bottom
 
 	 -- Master window (n > 1)
 	 local master = visible_windows[1]
 	 local pad_w = master.margin.l + master.margin.r
 	 local pad_h = master.margin.t + master.margin.b
 
-	 local master_y = master.margin.t + gap / 2
-	 if statusbar_position == "top" then
-			master_y = master_y + statusbar_height
-	 end
+	 local master_y = master.margin.t + gap / 2 + gap_top
 
-	 master:move(master.margin.l + gap / 2, master_y)
+	 master:move(master.margin.l + gap / 2 + gap_left, master_y)
 	 master:resize(master_area_w - pad_w - gap, master_area_h - pad_h - gap)
 
 	 -- Stack windows (n > 1)
@@ -49,10 +48,7 @@ local function arrange_master_stack(tag)
 			local pad_w = wnd.margin.l + wnd.margin.r
 			local pad_h = wnd.margin.t + wnd.margin.b
 
-			local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap
-			if statusbar_position == "top" then
-				 wnd_y = wnd_y + statusbar_height
-			end
+			local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap + gap_top
 
 			wnd:move(stack_area_x + wnd.margin.l + gap / 2, wnd_y)
 			wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)

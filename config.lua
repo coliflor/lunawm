@@ -7,9 +7,12 @@ return {
 
 	 conn_point = "awm",
 
-	 -- statusbar
-	 statusbar_height = 30,
-	 statusbar_position = "top", --bottom
+	 --
+	 window_gap_top = 40,
+	 window_gap_bottom = 40,
+	 window_gap_left = 40,
+	 window_gap_right = 40,
+
 
 	 -- input tuning
 	 keymap = "default.lua",

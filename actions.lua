@@ -3,7 +3,7 @@ local actions = {}
 -- chain window
 local function wrun(fun)
 	 return function()
-			if (wm.window ~= nil) then
+			if wm.window ~= nil and wm.window.canvas then
 				 fun(wm.window)
 			end
 	 end
@@ -13,7 +13,7 @@ actions.terminal = function() terminal() end
 actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
-function view_tag(tag_number)
+actions.view_tag = function(tag_number)
 	 if wm.current_tag == tag_number then
 			return -- Do nothing if already on the target tag
 	 end
@@ -52,7 +52,7 @@ function view_tag(tag_number)
 			end
 	 end
 
-	 arrange()
+	 wm.arrange()
 end
 
 local function swap_last_current_tag()
@@ -65,7 +65,7 @@ local function swap_last_current_tag()
 	 local last_tag = wm.last_tag
 
 	 -- Swap the tags
-	 view_tag(last_tag)
+	 actions.view_tag(last_tag)
 
 	 print("swap_last_current_tag: Swapped tags", current_tag, "and", last_tag)
 end
@@ -79,11 +79,11 @@ function update_window_dimensions(wnd, tag)
 	 end
 end
 
-actions.view_tag_1 = function() view_tag(1) end
-actions.view_tag_2 = function() view_tag(2) end
-actions.view_tag_3 = function() view_tag(3) end
-actions.view_tag_4 = function() view_tag(4) end
-actions.view_tag_5 = function() view_tag(5) end
+actions.view_tag_1 = function() actions.view_tag(1) end
+actions.view_tag_2 = function() actions.view_tag(2) end
+actions.view_tag_3 = function() actions.view_tag(3) end
+actions.view_tag_4 = function() actions.view_tag(4) end
+actions.view_tag_5 = function() actions.view_tag(5) end
 
 actions.swap_last_current_tag = function() swap_last_current_tag() end
 
@@ -152,7 +152,7 @@ actions.rotate_window_stack = function()
 	 local next_window = current_tag_windows[next_index]
 
 	 if (next_window) then
-			window_select(next_window)
+			next_window:select()
 	 end
 end
 
@@ -184,7 +184,7 @@ actions.rotate_window_stack_negative = function()
 	 local prev_window = current_tag_windows[prev_index]
 
 	 if (prev_window) then
-			window_select(prev_window)
+			prev_window:select()
 	 end
 end
 
@@ -219,7 +219,7 @@ actions.swap_master = function()
 
 			if swap_index then
 				 tag[1], tag[swap_index] = tag[swap_index], tag[1]
-				 arrange()
+				 wm.arrange()
 			end
 			return -- Exit after swapping
 	 end
@@ -244,7 +244,7 @@ actions.swap_master = function()
 	 -- Swap the windows in the tag table
 	 tag[master_index], tag[selected_index] = tag[selected_index], tag[master_index]
 
-	 arrange() -- Re-arrange the windows
+	 wm.arrange() -- Re-arrange the windows
 end
 
 actions.swap_child_windows = function()
@@ -279,7 +279,7 @@ actions.swap_child_windows = function()
 	 -- Swap the windows
 	 tag[window_index], tag[swap_index] = tag[swap_index], tag[window_index]
 
-	 arrange() -- Re-arrange the windows
+	 wm.arrange() -- Re-arrange the windows
 end
 
 actions.swap_child_windows_negative = function()
@@ -314,7 +314,7 @@ actions.swap_child_windows_negative = function()
 	 -- Swap the windows
 	 tag[window_index], tag[swap_index] = tag[swap_index], tag[window_index]
 
-	 arrange() -- Re-arrange the windows
+	 wm.arrange() -- Re-arrange the windows
 end
 
 -- Function to increase master window width
@@ -326,9 +326,10 @@ actions.increase_master_width = function()
             current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
         end
 
-        current_tag_data.master_ratio = math.min(current_tag_data.master_ratio + 0.05, 0.95) -- Increase by 5%, limit to 95%
+				-- Increase by 5%, limit to 95%
+        current_tag_data.master_ratio = math.min(current_tag_data.master_ratio + 0.05, 0.95)
         print("Master ratio for tag", wm.current_tag, "increased to:", current_tag_data.master_ratio)
-        arrange()
+        wm.arrange()
     else
         print("Error: Current tag data not found.")
     end
@@ -342,9 +343,10 @@ actions.decrease_master_width = function()
             current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
         end
 
-        current_tag_data.master_ratio = math.max(current_tag_data.master_ratio - 0.05, 0.10) -- Decrease by 5%, limit to 10%
+				-- Decrease by 5%, limit to 10%
+        current_tag_data.master_ratio = math.max(current_tag_data.master_ratio - 0.05, 0.10)
         print("Master ratio for tag", wm.current_tag, "decreased to:", current_tag_data.master_ratio)
-        arrange()
+        wm.arrange()
     else
         print("Error: Current tag data not found.")
     end
@@ -368,7 +370,7 @@ local function assign_tag(tag_index, wnd)
 	 if found then
 			-- Remove the window from the tag if it's already there
 			local tag_count = 0;
-			for t, tag in pairs(wm.tags) do
+			for _, tag in pairs(wm.tags) do
 				 for _, window in ipairs(tag) do
 						if window == wnd then
 							 tag_count = tag_count + 1;
@@ -393,7 +395,7 @@ actions.assign_tag_3 = wrun(function(wnd) assign_tag(3, wnd) end)
 actions.assign_tag_4 = wrun(function(wnd) assign_tag(4, wnd) end)
 actions.assign_tag_5 = wrun(function(wnd) assign_tag(5, wnd) end)
 
-function fuse_tags(tag_index1, tag_index2)
+actions.fuse_tags = function(tag_index1, tag_index2)
 	 -- Check if the tags exist
 	 if not wm.tags[tag_index1] or not wm.tags[tag_index2] then
 			print("fuse_tags: One or both tags do not exist.")
@@ -416,6 +418,7 @@ function fuse_tags(tag_index1, tag_index2)
 	 print("fuse_tags: Tag", tag_index2, "fused into tag", tag_index1)
 end
 
+-- TODO: not working properly
 local function fuse_all_tags()
 	 local num_tags = #wm.tags
 
@@ -427,12 +430,12 @@ local function fuse_all_tags()
 	 -- Fuse all tags into the first tag (index 1)
 	 for i = num_tags, 2, -1 do -- Iterate from the last tag to the second tag
 			if wm.tags[i] then
-				 fuse_tags(1, i) -- Fuse tag 'i' into tag 1
+				 actions.fuse_tags(1, i) -- Fuse tag 'i' into tag 1
 			end
 	 end
 
-	 view_tag(1)
-	 arrange() -- Re-arrange windows
+	 wm.view_tag(1)
+	 wm.arrange() -- Re-arrange windows
 
 	 print("fuse_all_tags: All tags fused into tag 1.")
 end
@@ -487,7 +490,7 @@ local function move_window_to_tag(wnd, target_tag_index)
 	 table.insert(wm.tags[target_tag_index], wnd)
 
 	 wnd:hide()
-	 arrange() -- Re-arrange windows on both tags
+	 wm.arrange() -- Re-arrange windows on both tags
 
 	 print("move_window_to_tag: Window", wnd, "moved from tag", current_tag_index, "to tag", target_tag_index)
 end
@@ -498,8 +501,8 @@ actions.move_window_to_tag_3 = wrun(function(wnd) move_window_to_tag(wnd, 3) end
 actions.move_window_to_tag_4 = wrun(function(wnd) move_window_to_tag(wnd, 4) end)
 actions.move_window_to_tag_5 = wrun(function(wnd) move_window_to_tag(wnd, 5) end)
 
-actions.window_stacked = wrun(function(wnd)  wnd.tags[wm.current_tag].force_size = true arrange()  end)
-actions.window_floating = wrun(function(wnd) wnd.tags[wm.current_tag].force_size = false arrange() end)
+actions.window_stacked = wrun(function(wnd)  wnd.tags[wm.current_tag].force_size = true wm.arrange()  end)
+actions.window_floating = wrun(function(wnd) wnd.tags[wm.current_tag].force_size = false wm.arrange() end)
 
 -- actions["terminal"] = actions.terminal
 

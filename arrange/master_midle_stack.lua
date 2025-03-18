@@ -19,12 +19,12 @@ local function arrange_master_middle_stack(tag)
 	 end
 
 	 if n == 1 then
-			arrangers.monocle(visible_windows)
+			wm.arrangers.monocle(visible_windows)
 			return
 	 end
 
 	 if n == 2 then
-			arrangers.master_stack(visible_windows)
+			wm.arrangers.master_stack(visible_windows)
 			return
 	 end
 
@@ -64,24 +64,24 @@ local function arrange_master_middle_stack(tag)
 
 	 -- Left Stack
 	 for i, wnd in ipairs(left_stack) do
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
+			local apad_w = wnd.margin.l + wnd.margin.r
+			local apad_h = wnd.margin.t + wnd.margin.b
 
 			local wnd_y = (i - 1) * left_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap + gap_top
 
 			wnd:move((VRESW - master_area_w) / 2 - stack_area_w - gap + gap_left + wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(stack_area_w - gap_left - pad_w - gap, left_stack_h - pad_h - gap)
+			wnd:resize(stack_area_w - gap_left - apad_w - gap, left_stack_h - apad_h - gap)
 	 end
 
 	 -- Right Stack
 	 for i, wnd in ipairs(right_stack) do
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
+			local bpad_w = wnd.margin.l + wnd.margin.r
+			local bpad_h = wnd.margin.t + wnd.margin.b
 
 			local wnd_y = (i - 1) * right_stack_h + wnd.margin.t + gap / 2 + (i - 1) * gap + gap_top
 
 			wnd:move((VRESW + master_area_w) / 2 + gap + wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(stack_area_w - gap_right - pad_w - gap, right_stack_h - pad_h - gap)
+			wnd:resize(stack_area_w - gap_right - bpad_w - gap, right_stack_h - bpad_h - gap)
 	 end
 end
 return arrange_master_middle_stack

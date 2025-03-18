@@ -4,7 +4,9 @@ wm = {
 	 actions = {},
 	 bindings = {}, -- keybindings
 	 var = {}, -- variables
+	 win = {}, -- window manager
 
+	 arrangers = {},
 	 windows = {},
 	 window = {},
 
@@ -19,9 +21,16 @@ wm = {
 	 mod_key_pressed = false,
 
 	 clip,
+	 CLIPBOARD_MESSAGE = "",
+
+	 -- functions
+	 arrange = {},
+	 toboolean = {},
+	 fuse_tags = {},
+	 view_tag = {},
 }
 
-CLIPBOARD_MESSAGE = ""
+local debug = true
 
 function awm()
 
@@ -29,19 +38,23 @@ function awm()
 	 wm.cfg = system_load("config.lua")()
 	 system_load("builtin/mouse.lua")() -- mouse gesture abstraction etc.
 	 system_load("timer.lua")()
-	 system_load("window.lua")() -- window creation
+	 wm.win = system_load("window.lua")() -- window creation
 	 wm.var = system_load("variables.lua")()
 	 wm.actions = system_load("actions.lua")() -- bindable actions
 	 system_load("ipc.lua")()
 	 wm.bindings = system_load("keybindings.lua")() -- keysym+mods -> actions
 
-	 arrangers = {
+	 wm.arrangers = {
 			floating = system_load("arrange/floating.lua")(),
 			monocle = system_load("arrange/monocle.lua")(),
 			grid = system_load("arrange/grid.lua")(),
 			middle_stack = system_load("arrange/master_midle_stack.lua")(),
 			master_stack = system_load("arrange/master_stack.lua")(),
 	 }
+
+	 wm.arrange = wm.win.arrange
+	 wm.fuse_tags = wm.actions.fuse_tags
+	 wm.view_tag = wm.actions.view_tag
 
 	 -- Initialize tags:
 	 for i = 1, wm.cfg.num_tags do
@@ -104,8 +117,9 @@ function awm()
 	 target_alloc(wm.cfg.conn_point, client_event_handler)
 end
 
+local last_msg
 function system_message(str)
-	 local msg, linew, w, h = render_text({wm.cfg.menu_fontstr, str})
+	 local msg, _, _, h = render_text({wm.cfg.terminal_font[1], str})
 	 if (valid_vid(last_msg)) then
 			delete_image(last_msg)
 	 end
@@ -119,7 +133,7 @@ function system_message(str)
 	 end
 end
 
-if (DEBUGLEVEL > 1) then
+if debug == true then
 	 debug_message = system_message
 else
 	 debug_message = function() end
@@ -208,17 +222,17 @@ function VRES_AUTORES(w, h, vppcm, flags, source)
 	 if (video_displaymodes(source, w, h)) then
 			resize_video_canvas(w, h)
 			resize_image(wm.bg, w, h)
-			arrange()
+			wm.arrange()
 	 end
 
 end
 
-function dump(o)
+wm.dump = function(o)
    if type(o) == 'table' then
       local s = '{ '
       for k,v in pairs(o) do
          if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
+         s = s .. '['..k..'] = ' .. wm.dump(v) .. ','
       end
       return s .. '} '
    else
@@ -226,7 +240,7 @@ function dump(o)
    end
 end
 
-function toboolean(str)
+wm.toboolean =  function(str)
 	 local bool = false
 	 if str == "true" then
 			bool = true

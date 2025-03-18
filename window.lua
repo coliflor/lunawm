@@ -1,3 +1,4 @@
+local window= {}
 local dirtbl = {"l", "r", "t", "b"}
 local wndlist = {}
 local hidden = {}
@@ -28,7 +29,7 @@ local function clipboard_handler(wnd, source, status)
 			table.insert(wnd.multipart, status.message)
 			if (not status.multipart) then
 				 wnd.clipboard_message = table.concat(wnd.multipart, "")
-				 CLIPBOARD_MESSAGE = wnd.clipboard_message
+				 wm.CLIPBOARD_MESSAGE = wnd.clipboard_message
 				 wnd.multipart = {}
 			end
 	 elseif (status.kind == "terminated") then
@@ -85,8 +86,8 @@ function group_handler(source, status)
 	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
 			print("group_handler called:")
-			print(dump(status))
-			print(dump(source))
+			print(wm.dump(status))
+			print(wm.dump(source))
 			defevhs[status.kind](wnd, source, status)
 	 end
 end
@@ -110,7 +111,7 @@ local function setup_wnd(vid, aid, opts)
 			return
 	 end
 
-	 local wnd = new_window(vid, aid, opts) -- Get the window object returned by new_window
+	 local wnd = window.new_window(vid, aid, opts) -- Get the window object returned by new_window
 	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}) -- Pass the anchor
 	 return wnd
 end
@@ -118,16 +119,16 @@ end
 function client_event_handler(source, status)
 
 	 print("client_event_handler called:")
-	 print(dump(status))
-	 print(dump(source))
+	 print(wm.dump(status))
+	 print(wm.dump(source))
 
 	 if status.kind == "terminated" then
 			delete_image(source)
-	 elseif status.kind == "resized" then
+	 -- elseif status.kind == "resized" then
 			--resize_image(source, status.width, status.height)
 	 elseif status.kind == "connected" then
 			target_alloc(wm.cfg.conn_point, client_event_handler)
-	 elseif status.kind == "registered" then
+	 -- elseif status.kind == "registered" then
 	 elseif status.kind == "preroll" then
 			local proptbl = {
 				 x = 0,
@@ -148,7 +149,7 @@ function client_event_handler(source, status)
 
 			wnd.tags[wm.current_tag].force_size = true
 
-			arrange() -- Call arrange after adding the window
+			window.arrange() -- Call arrange after adding the window
 
 			target_updatehandler(source, group_handler)
 			send_type_data(source, "terminal")
@@ -317,7 +318,7 @@ local function window_update_tprops(wnd)
 end
 
 -- assumption: cursor is on [vid]
-function set_trigger_point(ctx, vid)
+local function set_trigger_point(ctx, vid)
 	 if (ctx.wnd.drag_track) then
 			return
 	 end
@@ -376,7 +377,7 @@ local function decor_v_drag(ctx, vid, dx, dy)
 			else
 				 resize_move(ctx, dx, dy, 0, inx, iny)
 			end
-	 else
+			-- else
 			-- means the _over event didn't fire before drag, shouldn't happen
 	 end
 end
@@ -507,7 +508,7 @@ function build_decorations(wnd, opts)
 			return
 	 end
 
-	 for k, v in ipairs(dirtbl) do
+	 for _, v in ipairs(dirtbl) do
 			wnd.decor[v] = color_surface(1, 1, 0, 0, 0)
 			image_inherit_order(wnd.decor[v], true)
 			blend_image(wnd.decor[v], wm.cfg.border_alpha)
@@ -592,8 +593,17 @@ end
 local function window_resize(wnd, neww, newh, nofwd)
 	 local pad_v = wnd.margin.t - wnd.margin.b
 	 local pad_h = wnd.margin.l - wnd.margin.r
+
+	 -- Ensure neww and newh are not negative before clamping
+	 neww = math.max(0, neww)
+	 newh = math.max(0, newh)
+
 	 neww = (neww > VRESW - pad_h) and (VRESW - pad_h) or neww
 	 newh = (newh > VRESH - pad_v) and (VRESH - pad_v) or newh
+
+	 -- Ensure neww and newh are not negative after clamping
+	 neww = math.max(0, neww)
+	 newh = math.max(0, newh)
 
 	 resize_image(wnd.canvas, neww, newh)
 	 resize_image(wnd.anchor, neww, newh)
@@ -648,7 +658,7 @@ end
 
 local function find_nearest(bp_x, bp_y, dir)
 	 local lst = {}
-	 for k,v in pairs(wm.windows) do
+	 for _,v in pairs(wm.windows) do
 			local props = image_surface_resolve_properties(v.canvas)
 			local cx = bp_x - (props.x + 0.5 * props.width)
 			local cy = bp_y - (props.y + 0.5 * props.height)
@@ -678,7 +688,7 @@ local function find_nearest(bp_x, bp_y, dir)
 	 return lst
 end
 
-function window_select(wnd)
+local function window_select(wnd)
 	 if (wm.window) then
 			if (wm.window ~= wnd) then
 				 if (type(wm.window.deselect) == "function") then
@@ -707,7 +717,7 @@ function window_select(wnd)
 	 wnd:border_color(unpack(wm.cfg.active_color))
 	 reorder_windows()
 
-	 for k,v in ipairs(wnd.event_hooks) do
+	 for _,v in ipairs(wnd.event_hooks) do
 			v(wnd, "select", oldi)
 	 end
 	 return true
@@ -723,7 +733,7 @@ local function window_deselect(wnd)
 			wm.window = nil
 	 end
 
-	 for k,v in ipairs(wnd.event_hooks) do
+	 for _,v in ipairs(wnd.event_hooks) do
 			v(wnd, "deselect")
 	 end
 end
@@ -765,8 +775,8 @@ local function window_show(wnd)
 				 wnd:resize(tag_data.width, tag_data.height)
 				 wnd:move(tag_data.x, tag_data.y)
 
-				 for k, v in ipairs(wnd.event_hooks) do
-						v(wnd, "show")
+				 for _, h in ipairs(wnd.event_hooks) do
+						h(wnd, "show")
 				 end
 				 return
 			end
@@ -808,7 +818,7 @@ local function window_destroy(wnd)
 	 end
 
 	 -- remove mouse handlers
-	 for k, v in pairs(wnd.decor_mh) do
+	 for _, v in pairs(wnd.decor_mh) do
 			mouse_droplistener(v)
 	 end
 	 mouse_droplistener(wnd)
@@ -822,7 +832,7 @@ local function window_destroy(wnd)
 	 delete_image(wnd.anchor)
 
 	 -- but reset the table to identify any dangling refs.
-	 for k, v in pairs(wnd) do
+	 for k, _ in pairs(wnd) do
 			wnd[k] = nil
 	 end
 	 wnd.dead = true
@@ -847,7 +857,7 @@ local function window_destroy(wnd)
 			end
 	 end
 
-	 arrange()
+	 window.arrange()
 end
 
 local function window_move(wnd, x, y)
@@ -938,6 +948,18 @@ local function window_step_sz(wnd, steps, xd, yd)
 	 wnd:resize(neww, newh)
 end
 
+local function window_drag_move(wnd, x, y)
+	 if (wnd.drag_data) then
+			local dx = x - wnd.drag_data.start_x
+			local dy = y - wnd.drag_data.start_y
+			wnd:move(wnd.drag_data.wnd_x + dx, wnd.drag_data.wnd_y + dy)
+	 end
+end
+
+local function window_drag_end(wnd)
+	 wnd.drag_data = nil
+end
+
 local function window_mousemotion(ctx, vid, x, y)
 
    if (ctx.drag_data) then
@@ -971,7 +993,7 @@ local function window_drag_start(wnd, x, y)
 
 	 if wnd.tags[wm.current_tag].force_size == true then
 			wnd.tags[wm.current_tag].force_size = false
-			arrange()
+			window.arrange()
 	 end
 
 	 if (not wnd.drag_data) then
@@ -982,18 +1004,6 @@ local function window_drag_start(wnd, x, y)
 				 wnd_y = image_surface_resolve_properties(wnd.anchor).y
 			}
 	 end
-end
-
-function window_drag_move(wnd, x, y)
-	 if (wnd.drag_data) then
-			local dx = x - wnd.drag_data.start_x
-			local dy = y - wnd.drag_data.start_y
-			wnd:move(wnd.drag_data.wnd_x + dx, wnd.drag_data.wnd_y + dy)
-	 end
-end
-
-local function window_drag_end(wnd)
-	 wnd.drag_data = nil
 end
 
 local function window_mousebutton(ctx, devid, ind, act)
@@ -1039,7 +1049,7 @@ local function window_mousebutton(ctx, devid, ind, act)
 									-- Swap the windows in the tag
 									tag[index1], tag[index2] = tag[index2], tag[index1]
 									print("Swapped windows.")
-									arrange() -- Re-arrange windows
+									window.arrange() -- Re-arrange windows
 							 else
 									print("One or both windows not found in tag.")
 							 end
@@ -1099,8 +1109,7 @@ local function window_mouseout(ctx)
 	 end
 end
 
--- Return an iterator for iterating windows, windows-with-external
--- connection
+-- Return an iterator for iterating windows, windows-with-external connection
 function iter_windows(external)
 	 local ctx = {}
 
@@ -1111,7 +1120,6 @@ function iter_windows(external)
 	 end
 
 	 local i = 0
-	 local c = #ctx
 	 return function()
 			i = i + 1
 			return ctx[i]
@@ -1141,7 +1149,7 @@ local function window_paste(wnd, msg)
 	 end
 end
 
-function arrange()
+window.arrange = function()
 	 local tag = wm.tags and wm.tags[wm.current_tag] or {}
 	 local n = #tag
 
@@ -1149,21 +1157,21 @@ function arrange()
 
 	 local layout_mode = wm.tags[wm.current_tag].layout_mode or wm.cfg.layout_mode
 
-	 local arranger = arrangers[layout_mode]
+	 local arranger = wm.arrangers[layout_mode]
 
 	 if arranger then
 			arranger(tag)
 	 else
-			arrangers.master_stack(tag) -- Default to master_stack if not found
+			wm.arrangers.master_stack(tag) -- Default to master_stack if not found
 	 end
 end
 
 function set_layout_mode(mode)
 	 wm.tags[wm.current_tag].layout_mode = mode
-	 arrange() -- Re-arrange windows after changing layout
+	 window.arrange() -- Re-arrange windows after changing layout
 end
 
-function new_window(vid, aid, opts)
+window.new_window = function(vid, aid, opts)
 	 assert(opts and opts.x and opts.y and opts.w and opts.h)
 
 	 -- create anchor to track and control position and ordering
@@ -1279,3 +1287,6 @@ function new_window(vid, aid, opts)
 	 table.insert(wndlist, wnd)
 	 return wnd
 end
+
+
+return window

@@ -19,7 +19,7 @@ local function arrange_master_stack(tag)
 	 end
 
 	 if n == 1 then
-			arrangers.monocle(visible_windows)
+			wm.arrangers.monocle(visible_windows)
 			return
 	 end
 
@@ -45,13 +45,13 @@ local function arrange_master_stack(tag)
 	 local stack_h = (stack_area_h - (n - 2) * gap) / (n - 1)
 	 for i = 2, n do
 			local wnd = visible_windows[i]
-			local pad_w = wnd.margin.l + wnd.margin.r
-			local pad_h = wnd.margin.t + wnd.margin.b
+			local apad_w = wnd.margin.l + wnd.margin.r
+			local apad_h = wnd.margin.t + wnd.margin.b
 
 			local wnd_y = (i - 2) * stack_h + wnd.margin.t + gap / 2 + (i - 2) * gap + gap_top
 
 			wnd:move(stack_area_x + wnd.margin.l + gap / 2, wnd_y)
-			wnd:resize(stack_area_w - pad_w - gap, stack_h - pad_h - gap)
+			wnd:resize(stack_area_w - apad_w - gap, stack_h - apad_h - gap)
 	 end
 end
 

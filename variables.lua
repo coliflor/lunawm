@@ -11,7 +11,7 @@ variables.gaps = function(value)
 	 else
 			print("Invalid gaps value:", value)
 	 end
-	 arrange()
+	 wm.arrange()
 end
 
 -- border
@@ -24,7 +24,7 @@ variables.border = function(value)
 			print("Invalid border value:", value)
 	 end
 	 rebuild_all_decorations()
-	 arrange()
+	 wm.arrange()
 end
 
 -- window gaps
@@ -66,7 +66,7 @@ variables.window_gaps = function(left, right, top, bottom)
 
     if valid then
         print("Setting window_gaps to: left=", gap_left, ", right=", gap_right, ", top=", gap_top, ", bottom=", gap_bottom)
-        arrange()
+        wm.arrange()
     end
 end
 -- fuse_tags
@@ -76,8 +76,8 @@ variables.fuse_tags = function(tag_one, tag_two)
 
 	 if tone and ttwo then
 			print("fusing tags:", tone, ttwo)
-			fuse_tags(tone, ttwo)
-			view_tag(tone)
+			wm.fuse_tags(tone, ttwo)
+			wm.view_tag(tone)
 	 else
 			print("Invalid tags to fuse", tone, ttwo)
 	 end
@@ -89,7 +89,7 @@ variables.view_tag = function(tag)
 
 	 if tone then
 			print("fusing tags:", tone)
-			view_tag(tone)
+			wm.view_tag(tone)
 	 else
 			print("Invalid tag", tone)
 	 end
@@ -102,11 +102,9 @@ local function assign_tag(tag_index, wnd)
 
 	 -- Check if the window is already in the tag
 	 local found = false
-	 local found_index = nil
-	 for i, existing_wnd in ipairs(wm.tags[tag_index]) do
+	 for _, existing_wnd in ipairs(wm.tags[tag_index]) do
 			if existing_wnd == wnd then
 				 found = true
-				 found_index = i
 				 break
 			end
 	 end
@@ -200,7 +198,7 @@ end
 -- remove window decorations for a particular window
 variables.window_no_decor = function(aident, decor)
 	 local ident = tostring(aident)
-	 local decorations = toboolean(decor)
+	 local decorations = wm.toboolean(decor)
 
 	 if wm.windows then
 			for _, wnd in pairs(wm.windows) do -- Use pairs here
@@ -209,7 +207,7 @@ variables.window_no_decor = function(aident, decor)
 						build_decorations(wnd, { no_decor = decorations })
 				 end
 			end
-			arrange()
+			wm.arrange()
 	 end
 end
 

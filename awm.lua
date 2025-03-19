@@ -7,6 +7,8 @@ wm = {
 	 win = {}, -- window manager
 
 	 arrangers = {},
+	 layout_modes = {},
+
 	 windows = {},
 	 window = {},
 
@@ -20,7 +22,7 @@ wm = {
 	 -- Global variable to track mod key state
 	 mod_key_pressed = false,
 
-	 clip,
+	 clip = {},
 	 CLIPBOARD_MESSAGE = "",
 
 	 -- functions
@@ -28,6 +30,10 @@ wm = {
 	 toboolean = {},
 	 fuse_tags = {},
 	 view_tag = {},
+	 terminal = {},
+	 set_layout_mode = {},
+	 rebuild_all_decorations = {},
+	 client_event_handler = {},
 }
 
 local debug = true
@@ -52,9 +58,17 @@ function awm()
 			master_stack = system_load("arrange/master_stack.lua")(),
 	 }
 
+	 for mode, _ in pairs(wm.arrangers) do
+			table.insert(wm.layout_modes, mode)
+	 end
+
 	 wm.arrange = wm.win.arrange
 	 wm.fuse_tags = wm.actions.fuse_tags
 	 wm.view_tag = wm.actions.view_tag
+	 wm.terminal = wm.win.terminal
+	 wm.set_layout_mode = wm.win.set_layout_mode
+	 wm.rebuild_all_decorations = wm.win.rebuild_all_decorations
+	 wm.client_event_handler = wm.win.client_event_handler
 
 	 -- Initialize tags:
 	 for i = 1, wm.cfg.num_tags do
@@ -114,11 +128,11 @@ function awm()
 	 -- rebuild config now that we have access to everything
 	 awm_update_density(VPPCM)
 
-	 target_alloc(wm.cfg.conn_point, client_event_handler)
+	 target_alloc(wm.cfg.conn_point, wm.client_event_handler)
 end
 
 local last_msg
-function system_message(str)
+local function system_message(str)
 	 local msg, _, _, h = render_text({wm.cfg.terminal_font[1], str})
 	 if (valid_vid(last_msg)) then
 			delete_image(last_msg)
@@ -133,6 +147,7 @@ function system_message(str)
 	 end
 end
 
+local debug_message
 if debug == true then
 	 debug_message = system_message
 else
@@ -194,6 +209,23 @@ function awm_normal_input(iotbl)
 	 end
 end
 
+-- Return an iterator for iterating windows, windows-with-external connection
+local function iter_windows(external)
+	 local ctx = {}
+
+	 for k,v in pairs(wm.windows) do
+			if (not external or valid_vid(v.target, TYPE_FRAMESERVER)) then
+				 table.insert(ctx, k, v)
+			end
+	 end
+
+	 local i = 0
+	 return function()
+			i = i + 1
+			return ctx[i]
+	 end
+end
+
 function awm_update_density(vppcm)
 	 VPPCM = vppcm
 	 wm.cfg = system_load("config.lua")()
@@ -214,7 +246,7 @@ function awm_update_density(vppcm)
 	 mouse_cursor_sf(factor, factor)
 end
 
-function VRES_AUTORES(w, h, vppcm, flags, source)
+function VRES_AUTORES(w, h, vppcm, _, source)
 	 if (vppcm > 0 and math.abs(vppcm - VPPCM) > 1) then
 			awm_update_density(vppcm)
 	 end

@@ -11,32 +11,31 @@
 -- switch
 
 -- https://github.com/letoram/arcan/blob/master/data/scripts/builtin/keyboard.lua
-
-local M1 = "ralt_"
 local M2 = "lalt_"
 local M3 = "lalt_lctrl_"
 return {
 	 -- window positioning / sizing controls
-	 [M3 ..    "j"] = "move_up",
-	 [M3 ..    "k"] = "move_down",
-	 [M3 ..    "h"] = "move_left",
-	 [M3 ..    "l"] = "move_right",
-	 [M1 ..    "a"] = "shrink_h",
-	 [M1 ..    "s"] = "grow_h",
-	 [M1 ..    "d"] = "shrink_w",
-	 [M1 ..    "f"] = "grow_w",
-	 [M3 ..   "UP"] = "assign_top",
-	 [M3 .. "DOWN"] = "assign_bottom",
-	 [M3 .. "LEFT"] = "assign_left",
-	 [M3 .."RIGHT"] = "assign_right",
+	 [M3 .. "j"] = "move_up",
+	 [M3 .. "k"] = "move_down",
+	 [M3 .. "h"] = "move_left",
+	 [M3 .. "l"] = "move_right",
+	 [M3 .. "a"] = "shrink_h",
+	 [M3 .. "s"] = "grow_h",
+	 [M3 .. "d"] = "shrink_w",
+	 [M3 .. "f"] = "grow_w",
+	 [M2 .. "6"] = "assign_top",
+	 [M2 .. "7"] = "assign_bottom",
+	 [M2 .. "8"] = "assign_left",
+	 [M2 .. "9"] = "assign_right",
 
 	 -- others
-	 [M2 .. "m"] = "terminal",
+	 [M2 .. "p"] = "terminal",
 	 [M2 .. "ESCAPE"] = "shutdown",
 	 [M3 .. "TAB"] = "reset",
-	 [M1 .. "v"] = "clipboard_paste",
+	 [M2 .. "v"] = "paste",
+	 [M2 .. "c"] = "copy",
 
-	 --
+	 -- tag manipulation
 	 [M2 .. "q"] = "view_tag_1",
 	 [M2 .. "w"] = "view_tag_2",
 	 [M2 .. "e"] = "view_tag_3",
@@ -57,21 +56,23 @@ return {
 	 [M2 .. "4"] = "assign_tag_4",
 	 [M2 .. "5"] = "assign_tag_5",
 
-	 [M2 .. "p"] = "destroy_active_window", -- Close window
+	 [M2 .. "z"] = "destroy_active_window", -- Close window
 
 	 [M2 .. "f"] = "toggle_maximize",
 	 [M2 .. "y"] = "cycle_layout",
+	 [M3 .. "y"] = "cycle_layout_negative",
 	 [M2 .. "k"] = "rotate_window_stack",
 	 [M2 .. "j"] = "rotate_window_stack_negative",
 	 [M2 .. "l"] = "decrease_master_width",
 	 [M2 .. "h"] = "increase_master_width",
-	 [M2 .. "z"] = "swap_master",
+	 [M2 .. "m"] = "swap_master",
 
-	 [M2 .. "b"] = "swap_child_windows",
-	 [M2 .. "v"] = "swap_child_windows_negative",
+	 [M2 .. "n"] = "swap_child_windows",
+	 [M3 .. "n"] = "swap_child_windows_negative",
 
 	 [M2 .. "x"] = "fuse_all_tags",
 
-	 [M2 .. "c"] = "window_stacked",
-	 [M2 .. "g"] = "window_floating",
+	 [M2 .. "g"] = "window_stacked",
+	 [M3 .. "g"] = "window_floating",
+	 [M2 .. "d"] = "center_window",
 };

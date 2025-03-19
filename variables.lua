@@ -23,51 +23,51 @@ variables.border = function(value)
 	 else
 			print("Invalid border value:", value)
 	 end
-	 rebuild_all_decorations()
+	 wm.rebuild_all_decorations()
 	 wm.arrange()
 end
 
 -- window gaps
 variables.window_gaps = function(left, right, top, bottom)
-    local gap_left = tonumber(left)
-    local gap_right = tonumber(right)
-    local gap_top = tonumber(top)
-    local gap_bottom = tonumber(bottom)
+	 local gap_left = tonumber(left)
+	 local gap_right = tonumber(right)
+	 local gap_top = tonumber(top)
+	 local gap_bottom = tonumber(bottom)
 
-    local valid = true
+	 local valid = true
 
-    if gap_left then
-        wm.cfg.window_gap_left = gap_left
-    else
-        print("Invalid window_gap_left value:", left)
-        valid = false
-    end
+	 if gap_left then
+			wm.cfg.window_gap_left = gap_left
+	 else
+			print("Invalid window_gap_left value:", left)
+			valid = false
+	 end
 
-    if gap_right then
-        wm.cfg.window_gap_right = gap_right
-    else
-        print("Invalid window_gap_right value:", right)
-        valid = false
-    end
+	 if gap_right then
+			wm.cfg.window_gap_right = gap_right
+	 else
+			print("Invalid window_gap_right value:", right)
+			valid = false
+	 end
 
-    if gap_top then
-        wm.cfg.window_gap_top = gap_top
-    else
-        print("Invalid window_gap_top value:", top)
-        valid = false
-    end
+	 if gap_top then
+			wm.cfg.window_gap_top = gap_top
+	 else
+			print("Invalid window_gap_top value:", top)
+			valid = false
+	 end
 
-    if gap_bottom then
-        wm.cfg.window_gap_bottom = gap_bottom
-    else
-        print("Invalid window_gap_bottom value:", bottom)
-        valid = false
-    end
+	 if gap_bottom then
+			wm.cfg.window_gap_bottom = gap_bottom
+	 else
+			print("Invalid window_gap_bottom value:", bottom)
+			valid = false
+	 end
 
-    if valid then
-        print("Setting window_gaps to: left=", gap_left, ", right=", gap_right, ", top=", gap_top, ", bottom=", gap_bottom)
-        wm.arrange()
-    end
+	 if valid then
+			print("Setting window_gaps to: left=", gap_left, ", right=", gap_right, ", top=", gap_top, ", bottom=", gap_bottom)
+			wm.arrange()
+	 end
 end
 -- fuse_tags
 variables.fuse_tags = function(tag_one, tag_two)
@@ -204,7 +204,7 @@ variables.window_no_decor = function(aident, decor)
 			for _, wnd in pairs(wm.windows) do -- Use pairs here
 				 if wnd.ident == ident then
 						wnd.decorations = decorations
-						build_decorations(wnd, { no_decor = decorations })
+						wnd:build_decor({ no_decor = decorations })
 				 end
 			end
 			wm.arrange()

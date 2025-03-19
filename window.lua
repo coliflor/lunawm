@@ -9,15 +9,14 @@ local hidden = {}
 local defevhs = {}
 
 local function cursor_handler(wnd, source, status)
-	 print("cursor: " .. status.kind)
-	 if status.kind == "resized" then
-	 elseif (status.kind == "terminated") then
+	 if (status.kind == "terminated") then
 			delete_image(source)
 			wnd.mouse_cursor = nil
 			local mx, my = mouse_xy()
 			if (image_hit(wnd.canvas, mx, my)) then
 				 wnd:over()
 			end
+			-- elseif status.kind == "resized" then
 	 end
 end
 
@@ -41,7 +40,6 @@ defevhs["resized"] = function(wnd, source, status)
 	 wnd.flip_y = status.origo_ll
 
 	 if (wnd.target == source) then
-			wnd.aid = source_audio
 			if (wnd.tags[wm.current_tag].force_size) then
 				 local current_tag = wm.current_tag
 				 if wnd.tags[current_tag] then
@@ -55,34 +53,39 @@ defevhs["resized"] = function(wnd, source, status)
 end
 
 defevhs["terminated"] =
-	 function(wnd, source, status)
+	 function(wnd, source, _)
 			wnd:lost(source)
 	 end
 
 defevhs["ident"] =
-	 function(wnd, source, status)
+	 function(wnd, _, status)
 			wnd.ident = status.message
 	 end
 
 defevhs["segment_request"] =
-	 function(wnd, source, stat)
-			print("segment_request " .. stat.segkind)
-			if (stat.segkind == "cursor") then
-				 local new = accept_target(function(src, stat)
-							 cursor_handler(wnd, src, stat)
+	 function(wnd, _, stat)
+			if (stat.segkind == "clipboard") then
+				 wnd.clipboard_in = accept_target(
+						function(src, stat_two)
+							 clipboard_handler(wnd, src, stat_two);
+				 end);
+				 link_image(wnd.clipboard_in, wnd.anchor);
+			elseif (stat.segkind == "cursor") then
+				 local new = accept_target(function(src, stat_two)
+							 cursor_handler(wnd, src, stat_two)
 				 end)
 				 if (valid_vid(new)) then
-            link_image(new, wnd.anchor)
-            wnd.mouse_cursor = new
-            local mx, my = mouse_xy()
-            if (image_hit(wnd.canvas, mx, my)) then
+						link_image(new, wnd.anchor)
+						wnd.mouse_cursor = new
+						local mx, my = mouse_xy()
+						if (image_hit(wnd.canvas, mx, my)) then
 							 wnd:over()
-            end
+						end
 				 end
 			end
 	 end
 
-function group_handler(source, status)
+local function group_handler(source, status)
 	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
 			print("group_handler called:")
@@ -116,7 +119,7 @@ local function setup_wnd(vid, aid, opts)
 	 return wnd
 end
 
-function client_event_handler(source, status)
+window.client_event_handler = function(source, status)
 
 	 print("client_event_handler called:")
 	 print(wm.dump(status))
@@ -124,11 +127,11 @@ function client_event_handler(source, status)
 
 	 if status.kind == "terminated" then
 			delete_image(source)
-	 -- elseif status.kind == "resized" then
+			-- elseif status.kind == "resized" then
 			--resize_image(source, status.width, status.height)
 	 elseif status.kind == "connected" then
-			target_alloc(wm.cfg.conn_point, client_event_handler)
-	 -- elseif status.kind == "registered" then
+			target_alloc(wm.cfg.conn_point, wm.client_event_handler)
+			-- elseif status.kind == "registered" then
 	 elseif status.kind == "preroll" then
 			local proptbl = {
 				 x = 0,
@@ -156,16 +159,16 @@ function client_event_handler(source, status)
 
 			wnd:select()
 
-	 elseif status.kind == "segment_request" and status.segkind == "clipboard" then
+			--elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 end
 end
 
-function terminal()
+window.terminal = function()
 	 local arg = wm.cfg.terminal_cfg .. "env=ARCAN_CONNPATH=" .. wm.cfg.conn_point
 
 	 launch_avfeed(arg, "terminal", function(source, status)
 										if (status.kind == "preroll") then
-											 client_event_handler(source, status)
+											 wm.client_event_handler(source, status)
 										end
 	 end)
 end
@@ -183,21 +186,30 @@ local function get_first_tag_with_data(wnd)
 	 return nil
 end
 
--- TODO: maybe remove this function
-function windows_linear(hide_hidden)
-	 local res = {}
-	 for _,v in ipairs(wndlist) do
-			if (not hide_hidden or not hidden[v]) then
-				 table.insert(res, v)
+local function reorder_windows()
+	 local stacked_windows = {}
+	 local non_stacked_windows = {}
+
+	 -- Separate windows into stacked and non-stacked
+	 for _, wnd in ipairs(wndlist) do
+			if wnd.tags[wm.current_tag].force_size then
+				 table.insert(stacked_windows, wnd)
+			else
+				 table.insert(non_stacked_windows, wnd)
 			end
 	 end
 
-	 return res
-end
+	 -- Reorder stacked windows first
+	 local order = 10
+	 for _, wnd in ipairs(stacked_windows) do
+			order_image(wnd.anchor, order)
+			order = order + 10
+	 end
 
-local function reorder_windows()
-	 for i,v in ipairs(wndlist) do
-			order_image(v.anchor, (i+1) * 10)
+	 -- Reorder non-stacked windows after stacked windows
+	 for _, wnd in ipairs(non_stacked_windows) do
+			order_image(wnd.anchor, order)
+			order = order + 10
 	 end
 end
 
@@ -380,6 +392,11 @@ local function decor_v_drag(ctx, vid, dx, dy)
 			-- else
 			-- means the _over event didn't fire before drag, shouldn't happen
 	 end
+
+	 if ctx.wnd.tags[wm.current_tag].force_size == true then
+			ctx.wnd.tags[wm.current_tag].force_size = false
+			wm.arrange()
+	 end
 end
 
 local function decor_drop(ctx)
@@ -427,9 +444,14 @@ local function decor_h_drag(ctx, vid, dx, dy)
 				 resize_move(ctx, dx, dy, 0, inx, iny)
 			end
 	 end
+
+	 if ctx.wnd.tags[wm.current_tag].force_size == true then
+			ctx.wnd.tags[wm.current_tag].force_size = false
+			wm.arrange()
+	 end
 end
 
-local function decor_v_over(ctx, vid, x, y)
+local function decor_v_over(ctx, vid, _, y)
 	 if (ctx.wnd ~= wm.window) then
 			ctx.wnd:select()
 			return
@@ -450,7 +472,7 @@ local function decor_v_over(ctx, vid, x, y)
 	 end
 end
 
-local function decor_h_over(ctx, vid, x, y)
+local function decor_h_over(ctx, vid, x, _)
 	 if (ctx.wnd ~= wm.window) then
 			ctx.wnd:select()
 			return
@@ -482,7 +504,7 @@ end
 -- build the decorations: tttt
 --                        l  r
 --                        bbbb and anchor for easier resize
-function build_decorations(wnd, opts)
+local function build_decorations(wnd, opts)
 	 local bw = wm.cfg.border_width
 
 	 if bw == 0 or opts.no_decor == true then
@@ -583,7 +605,7 @@ function build_decorations(wnd, opts)
 	 window_decor_resize(wnd, tag_data.width, tag_data.height)
 end
 
-function rebuild_all_decorations()
+window.rebuild_all_decorations = function()
 	 for _, wnd in ipairs(wndlist) do
 			-- Assuming 'opts' is available or can be reconstructed
 			build_decorations(wnd, { no_decor = true })
@@ -738,7 +760,7 @@ local function window_deselect(wnd)
 	 end
 end
 
-local function window_lost(wnd, source)
+local function window_lost(wnd, _)
 	 wnd:destroy()
 end
 
@@ -928,7 +950,7 @@ local function step_sz(wnd)
 	 return ssx, ssy
 end
 
-local function window_step_move(wnd, steps, xd, yd)
+local function window_step_move(wnd, _, xd, yd)
 	 local sx, sy = step_sz(wnd)
 	 nudge_image(wnd.anchor, xd * sx, yd * sy)
 end
@@ -960,9 +982,9 @@ local function window_drag_end(wnd)
 	 wnd.drag_data = nil
 end
 
-local function window_mousemotion(ctx, vid, x, y)
+local function window_mousemotion(ctx, _, x, y)
 
-   if (ctx.drag_data) then
+	 if (ctx.drag_data) then
 			window_drag_move(ctx, x, y)
 			return -- Prevent further processing
 	 end
@@ -970,7 +992,6 @@ local function window_mousemotion(ctx, vid, x, y)
 	 local outm = {
 			kind = "analog",
 			mouse = true,
-			relative = false,
 			devid = 0,
 			subid = 0,
 			samples = {0}
@@ -1006,7 +1027,7 @@ local function window_drag_start(wnd, x, y)
 	 end
 end
 
-local function window_mousebutton(ctx, devid, ind, act)
+local function window_mousebutton(ctx, _, ind, act)
 	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
 			window_drag_start(ctx, mouse_xy())
 			return -- Prevent further processing
@@ -1109,23 +1130,6 @@ local function window_mouseout(ctx)
 	 end
 end
 
--- Return an iterator for iterating windows, windows-with-external connection
-function iter_windows(external)
-	 local ctx = {}
-
-	 for k,v in pairs(wm.windows) do
-			if (not external or valid_vid(v.target, TYPE_FRAMESERVER)) then
-				 table.insert(ctx, k, v)
-			end
-	 end
-
-	 local i = 0
-	 return function()
-			i = i + 1
-			return ctx[i]
-	 end
-end
-
 local function window_paste(wnd, msg)
 	 if (not wnd.clipboard_out) then
 			if (not valid_vid(wnd.target, TYPE_FRAMESERVER)) then
@@ -1166,7 +1170,7 @@ window.arrange = function()
 	 end
 end
 
-function set_layout_mode(mode)
+window.set_layout_mode = function(mode)
 	 wm.tags[wm.current_tag].layout_mode = mode
 	 window.arrange() -- Re-arrange windows after changing layout
 end
@@ -1197,8 +1201,6 @@ window.new_window = function(vid, aid, opts)
 			aid = aid,
 			min_w = 32,
 			min_h = 32,
-			width = opts.w,
-			height = opts.h,
 			created = CLOCK,
 			dispmask = 0, -- tracking display state
 			event_hooks = {},
@@ -1217,6 +1219,7 @@ window.new_window = function(vid, aid, opts)
 			mouse_btns = {},
 
 			-- window maipulation
+			build_decor  = build_decorations,
 			resize = window_resize,
 			move = window_move,
 			select = window_select,

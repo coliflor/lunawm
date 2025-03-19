@@ -3,11 +3,12 @@ new_globals = {
 	"wm",
 
 	-- awm
-	"awn",
+	"awm",
 	"awm_clock_pulse",
 	"awm_normal_input",
 	"awm_update_density",
 	"awm_input",
+	"VRES_AUTORES",
 
 	-- arcan
 	"TYPE_FRAMESERVER",
@@ -41,6 +42,7 @@ new_globals = {
 	"image_scale_txcos",
 	"mouse_tick",
 	"target_displayhint",
+	"mouse_setup",
 	"mouse_add_cursor",
 	"mouse_cursor_sf",
 	"mouse_iotbl_input",
@@ -61,6 +63,7 @@ new_globals = {
 	"resize_image",
 	"link_image",
 	"hide_image",
+	"nudge_image",
 	"kbd_repeat",
 	"system_load",
 	"audio_gain",
@@ -82,6 +85,9 @@ new_globals = {
 	"load_image_asynch",
 	"resource",
 	"launch_target",
+	"accept_target",
+
+ 	"render_text",
 
 	-- ipc
 	"zap_resource",

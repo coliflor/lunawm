@@ -9,7 +9,7 @@ local function wrun(fun)
 	 end
 end
 
-actions.terminal = function() terminal() end
+actions.terminal = function() wm.terminal() end
 actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
@@ -18,35 +18,26 @@ actions.view_tag = function(tag_number)
 			return -- Do nothing if already on the target tag
 	 end
 
-	 wm.last_tag = wm.current_tag
+	 local previous_tag = wm.current_tag
+	 wm.last_tag = previous_tag
 	 wm.current_tag = tag_number
 
 	 local target_windows = wm.tags[tag_number] or {}
+	 local previous_windows = wm.tags[previous_tag] or {}
 
+	 -- Show target windows
 	 for _, wnd in ipairs(target_windows) do
 			if wnd and type(wnd.show) == "function" then
-				 update_window_dimensions(wnd, tag_number)
+				 if wnd.tags[tag_number] and wnd.tags[tag_number].width and wnd.tags[tag_number].height then
+						wnd:resize(wnd.tags[tag_number].width, wnd.tags[tag_number].height)
+						wnd:move(wnd.tags[tag_number].x, wnd.tags[tag_number].y)
+				 end
 				 wnd:show()
 			end
 	 end
 
-	 local all_windows = windows_linear(false) or {} -- TODO: replace this function?
-
-	 local hide_list = {}
-	 for _, wnd in ipairs(all_windows) do
-			local found = false
-			for _, target_wnd in ipairs(target_windows) do
-				 if wnd == target_wnd then
-						found = true
-						break
-				 end
-			end
-			if not found then
-				 table.insert(hide_list, wnd)
-			end
-	 end
-
-	 for _, wnd in ipairs(hide_list) do
+	 -- Hide previous windows
+	 for _, wnd in ipairs(previous_windows) do
 			if wnd and type(wnd.hide) == "function" then
 				 wnd:hide()
 			end
@@ -70,15 +61,6 @@ local function swap_last_current_tag()
 	 print("swap_last_current_tag: Swapped tags", current_tag, "and", last_tag)
 end
 
-function update_window_dimensions(wnd, tag)
-	 if not wnd.tags[tag] == nil or not wnd.tags[tag] == {} then
-			if wnd.tags[tag].width ~= nil or wnd.tags[tag].width ~= nil then
-				 wnd:resize(wnd.tags[tag].width, wnd.tags[tag].height)
-				 wnd:move(wnd.tags[tag].x, wnd.tags[tag].y)
-			end
-	 end
-end
-
 actions.view_tag_1 = function() actions.view_tag(1) end
 actions.view_tag_2 = function() actions.view_tag(2) end
 actions.view_tag_3 = function() actions.view_tag(3) end
@@ -89,15 +71,31 @@ actions.swap_last_current_tag = function() swap_last_current_tag() end
 
 actions.destroy_active_window = wrun(function(wnd) wnd:destroy() end)
 
-actions.shrink_h = wrun(function(wnd) wnd:step_sz(1, 0,-1) end)
-actions.shrink_w = wrun(function(wnd) wnd:step_sz(1,-1, 0) end)
-actions.grow_h   = wrun(function(wnd) wnd:step_sz(1, 0, 1) end)
-actions.grow_w   = wrun(function(wnd) wnd:step_sz(1, 1, 0) end)
+actions.shrink_h = wrun(function(wnd) wnd:step_sz(1, 0,-1) wnd.tags[wm.current_tag].force_size = false wm.arrange() end)
+actions.shrink_w = wrun(function(wnd) wnd:step_sz(1,-1, 0) wnd.tags[wm.current_tag].force_size = false wm.arrange() end)
+actions.grow_h   = wrun(function(wnd) wnd:step_sz(1, 0, 1) wnd.tags[wm.current_tag].force_size = false wm.arrange() end)
+actions.grow_w   = wrun(function(wnd) wnd:step_sz(1, 1, 0) wnd.tags[wm.current_tag].force_size = false wm.arrange() end)
 
-actions.move_up    = wrun(function(wnd) wnd:step_move(1, 0,-1) end)
-actions.move_down  = wrun(function(wnd) wnd:step_move(1, 0, 1) end)
-actions.move_left  = wrun(function(wnd) wnd:step_move(1,-1, 0) end)
-actions.move_right = wrun(function(wnd) wnd:step_move(1, 1, 0) end)
+actions.move_up    = wrun(function(wnd)
+			wnd:step_move(1, 0,-1)
+			wnd.tags[wm.current_tag].force_size = false
+			wm.arrange()
+end)
+actions.move_down  = wrun(function(wnd)
+			wnd:step_move(1, 0, 1)
+			wnd.tags[wm.current_tag].force_size = false
+			wm.arrange()
+end)
+actions.move_left  = wrun(function(wnd)
+			wnd:step_move(1,-1, 0)
+			wnd.tags[wm.current_tag].force_size = false
+			wm.arrange()
+end)
+actions.move_right = wrun(function(wnd)
+			wnd:step_move(1, 1, 0)
+			wnd.tags[wm.current_tag].force_size = false
+			wm.arrange()
+end)
 
 actions.toggle_maximize = wrun(function(wnd) wnd:maximize("f") end)
 actions.assign_top      = wrun(function(wnd) wnd:maximize("t") end)
@@ -114,18 +112,25 @@ actions.copy = wrun(function(wnd)
 			end
 end)
 actions.paste = wrun(function(wnd)
-			wnd:paste(CLIPBOARD_MESSAGE)
+			wnd:paste(wm.CLIPBOARD_MESSAGE)
 end)
 
 -- Layout cycling
-local layout_modes = {"monocle", "grid", "master_stack", "middle_stack", "floating"}
 local current_layout_index = 1
 
 actions.cycle_layout = function()
-	 current_layout_index = (current_layout_index % #layout_modes) + 1
-	 local next_layout = layout_modes[current_layout_index]
-	 set_layout_mode(next_layout)
-	 print("Layout changed to: " .. next_layout)
+	 current_layout_index = (current_layout_index % #wm.layout_modes) + 1
+	 local next_layout = wm.layout_modes[current_layout_index]
+	 wm.set_layout_mode(next_layout)
+end
+
+actions.cycle_layout_negative = function()
+	 current_layout_index = (current_layout_index - 2) % #wm.layout_modes + 1
+	 if current_layout_index < 1 then
+			current_layout_index = current_layout_index + #wm.layout_modes
+	 end
+	 local prev_layout = wm.layout_modes[current_layout_index]
+	 wm.set_layout_mode(prev_layout)
 end
 
 -- Function to rotate through the window stack (positive direction) within the current tag
@@ -319,37 +324,37 @@ end
 
 -- Function to increase master window width
 actions.increase_master_width = function()
-    local current_tag_data = wm.tags[wm.current_tag]
+	 local current_tag_data = wm.tags[wm.current_tag]
 
-    if current_tag_data then
-        if current_tag_data.master_ratio == nil then
-            current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
-        end
+	 if current_tag_data then
+			if current_tag_data.master_ratio == nil then
+				 current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
+			end
 
-				-- Increase by 5%, limit to 95%
-        current_tag_data.master_ratio = math.min(current_tag_data.master_ratio + 0.05, 0.95)
-        print("Master ratio for tag", wm.current_tag, "increased to:", current_tag_data.master_ratio)
-        wm.arrange()
-    else
-        print("Error: Current tag data not found.")
-    end
+			-- Increase by 5%, limit to 95%
+			current_tag_data.master_ratio = math.min(current_tag_data.master_ratio + 0.05, 0.95)
+			print("Master ratio for tag", wm.current_tag, "increased to:", current_tag_data.master_ratio)
+			wm.arrange()
+	 else
+			print("Error: Current tag data not found.")
+	 end
 end
 -- Function to decrease master window width
 actions.decrease_master_width = function()
-    local current_tag_data = wm.tags[wm.current_tag]
+	 local current_tag_data = wm.tags[wm.current_tag]
 
-    if current_tag_data then
-        if current_tag_data.master_ratio == nil then
-            current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
-        end
+	 if current_tag_data then
+			if current_tag_data.master_ratio == nil then
+				 current_tag_data.master_ratio = 0.5 -- Initialize with default if nil
+			end
 
-				-- Decrease by 5%, limit to 10%
-        current_tag_data.master_ratio = math.max(current_tag_data.master_ratio - 0.05, 0.10)
-        print("Master ratio for tag", wm.current_tag, "decreased to:", current_tag_data.master_ratio)
-        wm.arrange()
-    else
-        print("Error: Current tag data not found.")
-    end
+			-- Decrease by 5%, limit to 10%
+			current_tag_data.master_ratio = math.max(current_tag_data.master_ratio - 0.05, 0.10)
+			print("Master ratio for tag", wm.current_tag, "decreased to:", current_tag_data.master_ratio)
+			wm.arrange()
+	 else
+			print("Error: Current tag data not found.")
+	 end
 end
 local function assign_tag(tag_index, wnd)
 	 if not wnd then
@@ -503,6 +508,19 @@ actions.move_window_to_tag_5 = wrun(function(wnd) move_window_to_tag(wnd, 5) end
 
 actions.window_stacked = wrun(function(wnd)  wnd.tags[wm.current_tag].force_size = true wm.arrange()  end)
 actions.window_floating = wrun(function(wnd) wnd.tags[wm.current_tag].force_size = false wm.arrange() end)
+
+actions.center_window = wrun(function(wnd)
+			local screen_width = VRESW
+			local screen_height = VRESH
+			local window_width = wnd.tags[wm.current_tag].width
+			local window_height = wnd.tags[wm.current_tag].height
+
+			local center_x = (screen_width - window_width) / 2
+			local center_y = (screen_height - window_height) / 2
+
+			wnd.tags[wm.current_tag].force_size = false
+			wnd:move(center_x, center_y)
+end)
 
 -- actions["terminal"] = actions.terminal
 

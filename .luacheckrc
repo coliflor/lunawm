@@ -40,6 +40,7 @@ new_globals = {
 	"image_set_txcos_default",
 	"image_storage_properties",
 	"image_scale_txcos",
+	"image_surface_resolve",
 	"mouse_tick",
 	"target_displayhint",
 	"mouse_setup",

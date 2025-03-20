@@ -678,38 +678,6 @@ local function window_resize(wnd, neww, newh, nofwd)
 	 end
 end
 
-local function find_nearest(bp_x, bp_y, dir)
-	 local lst = {}
-	 for _,v in pairs(wm.windows) do
-			local props = image_surface_resolve_properties(v.canvas)
-			local cx = bp_x - (props.x + 0.5 * props.width)
-			local cy = bp_y - (props.y + 0.5 * props.height)
-			if (dir) then
-				 if (dir == "t" and cy > 0) then
-						table.insert(lst, {wnd = v, dist = cy})
-				 elseif (dir == "l" and cx > 0) then
-						table.insert(lst, {wnd = v, dist = cx})
-				 elseif (dir == "r" and cx < 0) then
-						table.insert(lst, {wnd = v, dist = -cx})
-				 elseif (dir == "b" and cy < 0) then
-						table.insert(lst, {wnd = v, dist = -cy})
-				 end
-			else
-				 local dist = math.sqrt(cx * cx + cy * cy)
-				 table.insert(lst, {wnd = v, dist = dist})
-			end
-	 end
-
-	 for i=#lst,1,-1 do
-			if (lst[i].wnd.select_block) then
-				 table.remove(lst, i)
-			end
-	 end
-
-	 table.sort(lst, function(a, b) return a.dist < b.dist end)
-	 return lst
-end
-
 local function window_select(wnd)
 	 if (wm.window) then
 			if (wm.window ~= wnd) then
@@ -806,7 +774,7 @@ local function window_show(wnd)
 end
 
 local function window_destroy(wnd)
-	 local cp = image_surface_resolve_properties(wnd.canvas)
+	 image_surface_resolve_properties(wnd.canvas)
 	 if (wm.window == wnd) then
 			wm.window = nil
 	 end
@@ -850,7 +818,6 @@ local function window_destroy(wnd)
 	 end
 
 	 -- anchor will just cascade delete everything.
-	 print("Deleting window anchor:", wnd.anchor) -- Debug
 	 delete_image(wnd.anchor)
 
 	 -- but reset the table to identify any dangling refs.
@@ -864,15 +831,13 @@ local function window_destroy(wnd)
 			-- Select the next window in line
 			if #wndlist > 0 then
 				 wndlist[#wndlist]:select()
-			else
-				 find_nearest(cp.x + 0.5 * cp.width, cp.y + 0.5 * cp.y, 1, 1) -- TODO: maybe change this function
 			end
 	 end
 
+	 -- Remove window from tag
 	 for t, tag in pairs(wm.tags) do
 			for j, c in ipairs(tag) do
 				 if c == wnd then
-						print("Removed window from tag:", t) -- Debug
 						table.remove(tag, j)
 						break
 				 end
@@ -982,6 +947,39 @@ local function window_drag_end(wnd)
 	 wnd.drag_data = nil
 end
 
+local function window_convert_mouse_xy(wnd, x, y)
+    -- note, this should really take viewport into account (if provided), when
+    -- doing so, move this to be part of fsrv-resize and manual resize as this is
+    -- rather wasteful.
+
+    -- first, remap coordinate range (x, y are absolute)
+    local aprop = image_surface_resolve(wnd.canvas)
+    local locx = x - aprop.x
+    local locy = y - aprop.y
+
+    -- take server-side scaling into account
+    local res = {}
+    local sprop = image_storage_properties(
+        valid_vid(wnd.external) and wnd.external or wnd.canvas)
+
+    if wnd.autocrop then
+        aprop.width = sprop.width
+        aprop.height = sprop.height
+    end
+
+    local sfx = sprop.width / aprop.width
+    local sfy = sprop.height / aprop.height
+    local lx = sfx * locx
+    local ly = sfy * locy
+
+    res[1] = lx
+    res[2] = 0
+    res[3] = ly
+    res[4] = 0
+
+    return res
+end
+
 local function window_mousemotion(ctx, _, x, y)
 
 	 if (ctx.drag_data) then
@@ -993,20 +991,13 @@ local function window_mousemotion(ctx, _, x, y)
 			kind = "analog",
 			mouse = true,
 			devid = 0,
-			subid = 0,
-			samples = {0}
+			subid = 2,
+			samples = window_convert_mouse_xy(ctx, x, y)
 	 }
 	 if (not valid_vid(ctx.target, TYPE_FRAMESERVER)) then
 			return
 	 end
 
-	 local props = image_surface_resolve_properties(ctx.anchor)
-	 outm.samples[1] = x - props.x
-
-	 -- relative or absolute? for absolute, we need to scale
-	 target_input(ctx.target, outm)
-	 outm.samples[2] = y - props.y -- TODO: duno if this is totally correct
-	 outm.subid = 1
 	 target_input(ctx.target, outm)
 end
 

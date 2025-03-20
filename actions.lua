@@ -13,17 +13,14 @@ actions.terminal = function() wm.terminal() end
 actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
+-- TODO: something something to complex
 actions.view_tag = function(tag_number)
-	 if wm.current_tag == tag_number then
-			return -- Do nothing if already on the target tag
-	 end
 
 	 local previous_tag = wm.current_tag
 	 wm.last_tag = previous_tag
 	 wm.current_tag = tag_number
 
 	 local target_windows = wm.tags[tag_number] or {}
-	 local previous_windows = wm.tags[previous_tag] or {}
 
 	 -- Show target windows
 	 for _, wnd in ipairs(target_windows) do
@@ -36,10 +33,37 @@ actions.view_tag = function(tag_number)
 			end
 	 end
 
-	 -- Hide previous windows
-	 for _, wnd in ipairs(previous_windows) do
+	 -- Hide windows NOT in the Target Tag AND NOT in Other VISIBLE Tags
+	 for _, wnd in pairs(wm.windows) do
 			if wnd and type(wnd.hide) == "function" then
-				 wnd:hide()
+				 local in_target_tag = false
+				 for _, target_wnd in ipairs(target_windows) do
+						if wnd == target_wnd then
+							 in_target_tag = true
+							 break
+						end
+				 end
+
+				 if not in_target_tag then
+						local in_other_visible_tags = false
+						for tag_index, tag_windows in pairs(wm.tags) do
+							 if tag_index ~= tag_number and tag_index == wm.current_tag then
+									for _, other_wnd in ipairs(tag_windows) do
+										 if wnd == other_wnd then
+												in_other_visible_tags = true
+												break
+										 end
+									end
+							 end
+							 if in_other_visible_tags then
+									break
+							 end
+						end
+
+						if not in_other_visible_tags then
+							 wnd:hide()
+						end
+				 end
 			end
 	 end
 
@@ -387,7 +411,7 @@ local function assign_tag(tag_index, wnd)
 			if tag_count > 1 then
 				 table.remove(wm.tags[tag_index], found_index)
 			end
-			--view_tag(wm.current_tag)
+			actions.view_tag(wm.current_tag)
 	 else
 			-- Add the window to the tag if it's not already there
 			table.insert(wm.tags[tag_index], wnd)
@@ -427,6 +451,8 @@ end
 local function fuse_all_tags()
 	 local num_tags = #wm.tags
 
+	 wm.view_tag(1)
+
 	 if num_tags <= 1 then
 			print("fuse_all_tags: There are not enough tags to fuse.")
 			return
@@ -438,10 +464,8 @@ local function fuse_all_tags()
 				 actions.fuse_tags(1, i) -- Fuse tag 'i' into tag 1
 			end
 	 end
-
+	 wm.arrange()
 	 wm.view_tag(1)
-	 wm.arrange() -- Re-arrange windows
-
 	 print("fuse_all_tags: All tags fused into tag 1.")
 end
 

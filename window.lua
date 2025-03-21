@@ -835,7 +835,7 @@ local function window_destroy(wnd)
 	 end
 
 	 -- Remove window from tag
-	 for t, tag in pairs(wm.tags) do
+	 for _, tag in pairs(wm.tags) do
 			for j, c in ipairs(tag) do
 				 if c == wnd then
 						table.remove(tag, j)
@@ -948,36 +948,36 @@ local function window_drag_end(wnd)
 end
 
 local function window_convert_mouse_xy(wnd, x, y)
-    -- note, this should really take viewport into account (if provided), when
-    -- doing so, move this to be part of fsrv-resize and manual resize as this is
-    -- rather wasteful.
+	 -- note, this should really take viewport into account (if provided), when
+	 -- doing so, move this to be part of fsrv-resize and manual resize as this is
+	 -- rather wasteful.
 
-    -- first, remap coordinate range (x, y are absolute)
-    local aprop = image_surface_resolve(wnd.canvas)
-    local locx = x - aprop.x
-    local locy = y - aprop.y
+	 -- first, remap coordinate range (x, y are absolute)
+	 local aprop = image_surface_resolve(wnd.canvas)
+	 local locx = x - aprop.x
+	 local locy = y - aprop.y
 
-    -- take server-side scaling into account
-    local res = {}
-    local sprop = image_storage_properties(
-        valid_vid(wnd.external) and wnd.external or wnd.canvas)
+	 -- take server-side scaling into account
+	 local res = {}
+	 local sprop = image_storage_properties(
+			valid_vid(wnd.external) and wnd.external or wnd.canvas)
 
-    if wnd.autocrop then
-        aprop.width = sprop.width
-        aprop.height = sprop.height
-    end
+	 if wnd.autocrop then
+			aprop.width = sprop.width
+			aprop.height = sprop.height
+	 end
 
-    local sfx = sprop.width / aprop.width
-    local sfy = sprop.height / aprop.height
-    local lx = sfx * locx
-    local ly = sfy * locy
+	 local sfx = sprop.width / aprop.width
+	 local sfy = sprop.height / aprop.height
+	 local lx = sfx * locx
+	 local ly = sfy * locy
 
-    res[1] = lx
-    res[2] = 0
-    res[3] = ly
-    res[4] = 0
+	 res[1] = lx
+	 res[2] = 0
+	 res[3] = ly
+	 res[4] = 0
 
-    return res
+	 return res
 end
 
 local function window_mousemotion(ctx, _, x, y)
@@ -1019,6 +1019,12 @@ local function window_drag_start(wnd, x, y)
 end
 
 local function window_mousebutton(ctx, _, ind, act)
+
+	 -- Select window on click (any button)
+	 if act then -- If any button is pressed
+			ctx:select()
+	 end
+
 	 if (act and ind == 1 and wm.mod_key_pressed) then -- Left click pressed and mod key pressed
 			window_drag_start(ctx, mouse_xy())
 			return -- Prevent further processing
@@ -1079,6 +1085,15 @@ local function window_mousebutton(ctx, _, ind, act)
 				 wm.swap_window1 = nil
 			end
 			return -- Prevent further processing
+	 end
+
+	 if (act and ind == 3 and wm.mod_key_pressed) then
+			if ctx.tags and ctx.tags[wm.current_tag] then
+				 ctx.tags[wm.current_tag].force_size = not ctx.tags[wm.current_tag].force_size
+				 print(ctx.tags[wm.current_tag].force_size)
+				 wm.arrange() -- Re-arrange windows
+			end
+			return
 	 end
 
 	 if (ctx.mouse_btns and ctx.mouse_btns[ind] ~= act) then

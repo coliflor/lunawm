@@ -1,0 +1,2 @@
+ARCAN_STATEPATH=$HOME/.arcan_state/ arcan-net --soft-auth -l 6680 -- /usr/local/bin/arcan $HOME/Proyectos/lunawm/lunawm
+ARCAN_STATEPATH=$HOME/.arcan_client arcan-net 127.0.0.1 6680

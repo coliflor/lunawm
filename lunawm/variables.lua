@@ -6,25 +6,22 @@ local variables = {}
 variables.gaps = function(value)
 	 local gaps = tonumber(value)
 	 if gaps then
-			print("Setting gaps to:", gaps)
-			wm.cfg.window_gap = gaps
-	 else
-			print("Invalid gaps value:", value)
+			if gaps >= 0 then
+				 wm.cfg.window_gap = gaps
+				 wm.arrange()
+			end
 	 end
-	 wm.arrange()
 end
 
 -- border
 variables.border = function(value)
 	 local border = tonumber(value)
 	 if border then
-			print("Setting border to:", border)
-			wm.cfg.border_width = border
-	 else
-			print("Invalid border value:", value)
+			if border >= 0 then
+				 wm.cfg.border_width = border
+				 wm.arrange()
+			end
 	 end
-	 wm.rebuild_all_decorations()
-	 wm.arrange()
 end
 
 -- window gaps
@@ -36,39 +33,32 @@ variables.window_gaps = function(left, right, top, bottom)
 
 	 local valid = true
 
-	 if gap_left then
-			wm.cfg.window_gap_left = gap_left
-	 else
-			print("Invalid window_gap_left value:", left)
+	 -- Check for valid numbers and non-negative values
+	 if gap_left == nil or gap_left < 0 then
 			valid = false
 	 end
 
-	 if gap_right then
-			wm.cfg.window_gap_right = gap_right
-	 else
-			print("Invalid window_gap_right value:", right)
+	 if gap_right == nil or gap_right < 0 then
 			valid = false
 	 end
 
-	 if gap_top then
-			wm.cfg.window_gap_top = gap_top
-	 else
-			print("Invalid window_gap_top value:", top)
+	 if gap_top == nil or gap_top < 0 then
 			valid = false
 	 end
 
-	 if gap_bottom then
-			wm.cfg.window_gap_bottom = gap_bottom
-	 else
-			print("Invalid window_gap_bottom value:", bottom)
+	 if gap_bottom == nil or gap_bottom < 0 then
 			valid = false
 	 end
 
 	 if valid then
-			print("Setting window_gaps to: left=", gap_left, ", right=", gap_right, ", top=", gap_top, ", bottom=", gap_bottom)
+			wm.cfg.window_gap_left = gap_left
+			wm.cfg.window_gap_right = gap_right
+			wm.cfg.window_gap_top = gap_top
+			wm.cfg.window_gap_bottom = gap_bottom
 			wm.arrange()
 	 end
 end
+
 -- fuse_tags
 variables.fuse_tags = function(tag_one, tag_two)
 	 local tone = tonumber(tag_one)
@@ -88,65 +78,12 @@ variables.view_tag = function(tag)
 	 local tone = tonumber(tag)
 
 	 if tone then
-			print("fusing tags:", tone)
 			wm.view_tag(tone)
-	 else
-			print("Invalid tag", tone)
 	 end
 end
 
-local function assign_tag(tag_index, wnd)
-	 if not wnd then
-			return -- No window provided
-	 end
-
-	 -- Check if the window is already in the tag
-	 local found = false
-	 for _, existing_wnd in ipairs(wm.tags[tag_index]) do
-			if existing_wnd == wnd then
-				 found = true
-				 break
-			end
-	 end
-
-	 if found then
-			return
-	 else
-			-- Add the window to the tag if it's not already there
-			table.insert(wm.tags[tag_index], wnd)
-	 end
-end
-
--- window position for a particular tag
--- TODO: this is garbage calling wnd:move(x, y)
-variables.window_pos = function(aident, atag, pos_x, pos_y)
-	 local ident = tostring(aident)
-	 local x = tonumber(pos_x)
-	 local y = tonumber(pos_y)
-	 local tag = tonumber(atag)
-
-	 if wm.windows then
-			for _, wnd in pairs(wm.windows) do
-				 if wnd.ident == ident then
-						assign_tag(tag, wnd) -- Assign the window to the tag first
-						wnd.tags[tag].force_size = false
-						wnd:move(x, y)
-						-- wnd.tags[tag] = {
-						-- 	 width = wnd.tags[tag].width,
-						-- 	 height = wnd.tags[tag].height,
-						-- 	 x = x,
-						-- 	 y = y,
-						-- }
-				 end
-			end
-	 else
-			print("Error: wm.windows is nil.")
-	 end
-end
-
--- window size for a particular tag
--- TODO: this is garbage calling wnd:resize(width, height)
-variables.window_size = function(aident, atag, awidth, aheight)
+-- window position and size for a particular tag
+variables.window_status = function(aident, atag, awidth, aheight, pos_x, pos_y)
 	 local ident = tostring(aident)
 	 local tag = tonumber(atag)
 
@@ -170,28 +107,39 @@ variables.window_size = function(aident, atag, awidth, aheight)
 
 	 local width = resolve_value(awidth)
 	 local height = resolve_value(aheight)
+	 local x = resolve_value(pos_x)
+	 local y = resolve_value(pos_y)
 
-	 if width == nil or height == nil then
-			print("Error: Invalid width or height provided.")
+	 if width == nil or height == nil or tag == nil  or x == nil or y == nil then
 			return
 	 end
 
 	 if wm.windows then
 			for _, wnd in pairs(wm.windows) do
 				 if wnd.ident == ident then
-						assign_tag(tag, wnd) -- Assign the window to the tag first
+
+						-- Check if wnd.tags[tag] already exists
+						if wnd.tags and wnd.tags[tag] then
+							 -- Delete existing data
+							 wnd.tags[tag] = {};
+						end;
+
+						-- Assign the window to the tag
+						table.insert(wm.tags[tag], wnd)
+
+						wnd.tags[tag] = {
+							 width = width,
+							 height = height,
+							 x = x,
+							 y = y,
+						}
+
+						wnd:resize(wnd.tags[tag].width, wnd.tags[tag].height)
+
 						wnd.tags[tag].force_size = false
-						wnd:resize(width, height)
-						-- wnd.tags[tag] = {
-						-- 	 width = width,
-						-- 	 height = height,
-						-- 	 x = wnd.tags[tag].x,
-						-- 	 y = wnd.tags[tag].y,
-						-- }
+						break -- Exit loop after finding the window
 				 end
 			end
-	 else
-			print("Error: wm.windows is nil.")
 	 end
 end
 

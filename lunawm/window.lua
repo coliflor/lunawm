@@ -1211,7 +1211,7 @@ window.new_window = function(vid, aid, opts)
 			dispmask = 0, -- tracking display state
 			event_hooks = {},
 			title = "",
-			ident = "",
+			ident = "lunawm_window",
 
 			-- decorations
 			decorations = true,

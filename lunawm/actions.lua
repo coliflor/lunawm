@@ -363,6 +363,7 @@ actions.increase_master_width = function()
 			print("Error: Current tag data not found.")
 	 end
 end
+
 -- Function to decrease master window width
 actions.decrease_master_width = function()
 	 local current_tag_data = wm.tags[wm.current_tag]
@@ -380,6 +381,7 @@ actions.decrease_master_width = function()
 			print("Error: Current tag data not found.")
 	 end
 end
+
 local function assign_tag(tag_index, wnd)
 	 if not wnd then
 			return -- No window provided

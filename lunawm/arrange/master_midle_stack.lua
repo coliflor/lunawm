@@ -7,6 +7,11 @@ local function arrange_master_middle_stack(tag)
 
 	 local visible_windows = {}
 	 for _, wnd in ipairs(tag) do
+			-- Initialize wnd.tags if it's nil
+			if not wnd.tags then
+				 wnd.tags = {}
+			end
+
 			if wnd.tags[wm.current_tag].force_size == true then
 				 table.insert(visible_windows, wnd)
 			end

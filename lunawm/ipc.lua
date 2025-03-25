@@ -40,7 +40,7 @@ local function split(inputstr, sep)
 end
 
 local commands = {
-	 var = function(client, line, res, remainder)
+	 var = function(_, _, _, remainder)
 			local parts = split(remainder, " ")
 			if #parts >= 2 then
 				 local var_name = parts[1]
@@ -58,7 +58,7 @@ local commands = {
 				 return {"EINVAL: invalid arguments for var command.\n"}
 			end
 	 end,
-	 exec = function(client, line, res, remainder)
+	 exec = function(_, _, _, remainder)
 			if (wm.actions and wm.actions[remainder]) then
 				 wm.actions[remainder]()
 				 return {"OK\n"}
@@ -113,7 +113,7 @@ local function poll_control_channel()
 			}
 			nc:lf_strip(true)
 
-			nc:data_handler(function(gpublock)
+			nc:data_handler(function()
             local data, ok = nc:read()
             while data do
 							 local lines = split(data, ";")

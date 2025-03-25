@@ -890,6 +890,51 @@ local function window_maximize(wnd, dir)
 	 end
 end
 
+local function window_fullscreen(wnd, dir)
+    -- revert
+    if (wnd.maximized) then
+        wnd:move(wnd.maximized.x, wnd.maximized.y)
+        wnd:resize(wnd.maximized.w, wnd.maximized.h)
+        wnd.maximized = nil
+        return
+    end
+
+    -- let move/resize account for decorations
+    local props = image_surface_resolve_properties(wnd.anchor)
+
+    local current_tag = wm.current_tag
+    local tag_data = wnd.tags[current_tag]
+
+    if (not tag_data) then
+        tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+    end
+
+    wnd.maximized = {
+        x = props.x, y = props.y,
+        w = tag_data.width, h = tag_data.height
+    }
+
+    local pad_w = 0
+    local pad_h = 0
+
+    if (dir == "f") then
+        wnd:resize(VRESW - pad_w, VRESH - pad_h)
+        wnd:move(0, 0)
+    elseif (dir == "l") then
+        wnd:move(0, 0)
+        wnd:resize(math.floor(0.5 * VRESW), VRESH)
+    elseif (dir == "r") then
+        wnd:resize(math.floor(0.5 * VRESW), VRESH)
+        wnd:move(math.ceil(VRESW * 0.5), 0)
+    elseif (dir == "t") then
+        wnd:move(0, 0)
+        wnd:resize(VRESW, math.floor(0.5 * VRESH))
+    elseif (dir == "b") then
+        wnd:resize(VRESW, math.floor(0.5 * VRESH))
+        wnd:move(0, math.ceil(VRESH * 0.5))
+    end
+end
+
 local function step_sz(wnd)
 	 local ssx = wnd.inertia and wnd.inertia[1] or wm.cfg.drag_resize_inertia
 	 local ssy = wnd.inertia and wnd.inertia[2] or wm.cfg.drag_resize_inertia
@@ -1182,7 +1227,7 @@ window.new_window = function(vid, aid, opts)
 			dispmask = 0, -- tracking display state
 			event_hooks = {},
 			title = "",
-			ident = "lunawm_window",
+			ident = "",
 
 			-- decorations
 			decorations = true,
@@ -1213,6 +1258,7 @@ window.new_window = function(vid, aid, opts)
 			over = window_mouseover,
 			out = window_mouseout,
 			maximize = window_maximize,
+			fullscreen = window_fullscreen,
 			update_tprops = window_update_tprops,
 			paste = window_paste,
 

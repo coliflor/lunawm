@@ -28,7 +28,7 @@ local function arrange_grid(tag)
 	 local index = 1
 	 for col = 1, cols do
 			local col_windows = {}
-			for row = 1, rows do
+			for _ = 1, rows do
 				 if index <= n then
 						table.insert(col_windows, visible_windows[index])
 						index = index + 1
@@ -39,7 +39,7 @@ local function arrange_grid(tag)
 			local col_index = 1
 			local current_y = gap_top
 
-			for row = 1, rows do
+			for _ = 1, rows do
 				 if col_index <= col_n then
 						local wnd = col_windows[col_index]
 						local pad_w = wnd.margin.l + wnd.margin.r

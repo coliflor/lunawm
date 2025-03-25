@@ -5,12 +5,10 @@
 -- [M1 .. "W"] = "set_temp_prefix_1"
 --
 -- For triggering on release, add the suffix _f"
---
--- other assignable functions:
--- menu_path(name1/name2/name3...)
--- switch
 
 -- https://github.com/letoram/arcan/blob/master/data/scripts/builtin/keyboard.lua
+-- local M2 = "lmeta_"
+-- local M3 = "lmeta_lctrl_"
 local M2 = "lalt_"
 local M3 = "lalt_lctrl_"
 return {
@@ -23,10 +21,19 @@ return {
 	 [M3 .. "s"] = "grow_h",
 	 [M3 .. "d"] = "shrink_w",
 	 [M3 .. "f"] = "grow_w",
+
+	 [M3 .. "f"] = "toggle_maximize",
+	 [M2 .. "f"] = "toggle_fullscreen",
+
 	 [M2 .. "6"] = "assign_top",
 	 [M2 .. "7"] = "assign_bottom",
 	 [M2 .. "8"] = "assign_left",
 	 [M2 .. "9"] = "assign_right",
+
+	 [M3 .. "6"] = "fassign_top",
+	 [M3 .. "7"] = "fassign_bottom",
+	 [M3 .. "8"] = "fassign_left",
+	 [M3 .. "9"] = "fassign_right",
 
 	 -- others
 	 [M2 .. "p"] = "terminal",
@@ -56,11 +63,12 @@ return {
 	 [M2 .. "4"] = "assign_tag_4",
 	 [M2 .. "5"] = "assign_tag_5",
 
+	 --
 	 [M2 .. "z"] = "destroy_active_window", -- Close window
 
-	 [M2 .. "f"] = "toggle_maximize",
-	 [M2 .. "y"] = "cycle_layout",
-	 [M3 .. "y"] = "cycle_layout_negative",
+	 [M2 .. "y"] = "reset_layout",
+	 [M2 .. "u"] = "cycle_layout",
+	 [M3 .. "u"] = "cycle_layout_negative",
 	 [M2 .. "k"] = "rotate_window_stack",
 	 [M2 .. "j"] = "rotate_window_stack_negative",
 	 [M2 .. "l"] = "decrease_master_width",

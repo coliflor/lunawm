@@ -14,6 +14,10 @@ actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
 actions.view_tag = function(tag_number)
+	 local num_tags = wm.cfg.num_tags
+	 if tag_number < 1 or tag_number > num_tags or type(tag_number) ~= "number" then
+			return
+	 end
 
 	 local previous_tag = wm.current_tag
 	 wm.last_tag = previous_tag
@@ -74,7 +78,6 @@ local function swap_last_current_tag()
 			return
 	 end
 
-	 local current_tag = wm.current_tag
 	 local last_tag = wm.last_tag
 
 	 -- Swap the tags
@@ -123,6 +126,12 @@ actions.assign_bottom   = wrun(function(wnd) wnd:maximize("b") end)
 actions.assign_left     = wrun(function(wnd) wnd:maximize("l") end)
 actions.assign_right    = wrun(function(wnd) wnd:maximize("r") end)
 
+actions.toggle_fullscreen = wrun(function(wnd) wnd:fullscreen("f") end)
+actions.fassign_top       = wrun(function(wnd) wnd:fullscreen("t") end)
+actions.fassign_bottom    = wrun(function(wnd) wnd:fullscreen("b") end)
+actions.fassign_left      = wrun(function(wnd) wnd:fullscreen("l") end)
+actions.fassign_right     = wrun(function(wnd) wnd:fullscreen("r") end)
+
 actions.set_temp_prefix_1 = function() wm.sym.prefix = "t1_" end
 
 actions.hide = wrun(function(wnd) wnd:hide() end)
@@ -151,6 +160,17 @@ actions.cycle_layout_negative = function()
 	 end
 	 local prev_layout = wm.layout_modes[current_layout_index]
 	 wm.set_layout_mode(prev_layout)
+end
+
+actions.reset_layout = function()
+    local default_mode = wm.cfg.default_layout_mode
+
+    if not default_mode or not wm.arrangers[default_mode] then
+        return
+    end
+
+		wm.tags[wm.current_tag].layout_mode = default_mode
+    wm.arrange()
 end
 
 -- Function to rotate through the window stack (positive direction) within the current tag
@@ -519,6 +539,7 @@ actions.center_window = wrun(function(wnd)
 
 			wnd.tags[wm.current_tag].force_size = false
 			wnd:move(center_x, center_y)
+			wm.arrange()
 end)
 
 return actions

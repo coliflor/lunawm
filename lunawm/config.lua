@@ -50,5 +50,5 @@ return {
 	 active_color = {252, 194, 110},
 	 inactive_color = {45, 43, 83},
 
-	 debug_mode = false,
+	 debug_mode = true,
 }

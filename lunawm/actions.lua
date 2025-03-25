@@ -13,7 +13,6 @@ actions.terminal = function() wm.terminal() end
 actions.shutdown = function() shutdown() end
 actions.reset = function() system_collapse() end
 
--- TODO: something something to complex
 actions.view_tag = function(tag_number)
 
 	 local previous_tag = wm.current_tag
@@ -72,7 +71,6 @@ end
 
 local function swap_last_current_tag()
 	 if not wm.last_tag then
-			print("swap_last_current_tag: No last tag recorded.")
 			return
 	 end
 
@@ -81,8 +79,6 @@ local function swap_last_current_tag()
 
 	 -- Swap the tags
 	 actions.view_tag(last_tag)
-
-	 print("swap_last_current_tag: Swapped tags", current_tag, "and", last_tag)
 end
 
 actions.view_tag_1 = function() actions.view_tag(1) end
@@ -357,10 +353,7 @@ actions.increase_master_width = function()
 
 			-- Increase by 5%, limit to 95%
 			current_tag_data.master_ratio = math.min(current_tag_data.master_ratio + 0.05, 0.95)
-			print("Master ratio for tag", wm.current_tag, "increased to:", current_tag_data.master_ratio)
 			wm.arrange()
-	 else
-			print("Error: Current tag data not found.")
 	 end
 end
 
@@ -375,10 +368,7 @@ actions.decrease_master_width = function()
 
 			-- Decrease by 5%, limit to 10%
 			current_tag_data.master_ratio = math.max(current_tag_data.master_ratio - 0.05, 0.10)
-			print("Master ratio for tag", wm.current_tag, "decreased to:", current_tag_data.master_ratio)
 			wm.arrange()
-	 else
-			print("Error: Current tag data not found.")
 	 end
 end
 
@@ -429,7 +419,6 @@ actions.assign_tag_5 = wrun(function(wnd) assign_tag(5, wnd) end)
 actions.fuse_tags = function(tag_index1, tag_index2)
 	 -- Check if the tags exist
 	 if not wm.tags[tag_index1] or not wm.tags[tag_index2] then
-			print("fuse_tags: One or both tags do not exist.")
 			return
 	 end
 
@@ -439,8 +428,6 @@ actions.fuse_tags = function(tag_index1, tag_index2)
 			table.insert(wm.tags[tag_index1], wnd)
 			table.remove(wm.tags[tag_index2], i)
 	 end
-
-	 print("fuse_tags: Tag", tag_index2, "fused into tag", tag_index1)
 end
 
 local function fuse_all_tags()
@@ -449,7 +436,6 @@ local function fuse_all_tags()
 	 wm.view_tag(1)
 
 	 if num_tags <= 1 then
-			print("fuse_all_tags: There are not enough tags to fuse.")
 			return
 	 end
 
@@ -461,14 +447,12 @@ local function fuse_all_tags()
 	 end
 	 wm.arrange()
 	 wm.view_tag(1)
-	 print("fuse_all_tags: All tags fused into tag 1.")
 end
 
 actions.fuse_all_tags = function() fuse_all_tags() end
 
 local function move_window_to_tag(wnd, target_tag_index)
 	 if not wm.tags[target_tag_index] then
-			print("move_window_to_tag: Target tag does not exist.")
 			return
 	 end
 
@@ -488,12 +472,10 @@ local function move_window_to_tag(wnd, target_tag_index)
 	 end
 
 	 if not current_tag_index then
-			print("move_window_to_tag: Window not found in any tag.")
 			return
 	 end
 
 	 if current_tag_index == target_tag_index then
-			print("move_window_to_tag: Window is already in the target tag.")
 			return
 	 end
 
@@ -515,8 +497,6 @@ local function move_window_to_tag(wnd, target_tag_index)
 
 	 wnd:hide()
 	 wm.arrange() -- Re-arrange windows on both tags
-
-	 print("move_window_to_tag: Window", wnd, "moved from tag", current_tag_index, "to tag", target_tag_index)
 end
 
 actions.move_window_to_tag_1 = wrun(function(wnd) move_window_to_tag(wnd, 1) end)

@@ -88,9 +88,6 @@ defevhs["segment_request"] =
 local function group_handler(source, status)
 	 local wnd = wm.windows[source]
 	 if (wnd and defevhs[status.kind]) then
-			print("group_handler called:")
-			print(wm.dump(status))
-			print(wm.dump(source))
 			defevhs[status.kind](wnd, source, status)
 	 end
 end
@@ -120,10 +117,6 @@ local function setup_wnd(vid, aid, opts)
 end
 
 window.client_event_handler = function(source, status)
-
-	 print("client_event_handler called:")
-	 print(wm.dump(status))
-	 print(wm.dump(source))
 
 	 if status.kind == "terminated" then
 			delete_image(source)
@@ -725,10 +718,6 @@ local function window_lost(wnd, _)
 end
 
 local function window_hide(wnd)
-	 if (wnd.delete_protect) then
-			return
-	 end
-
 	 wnd:deselect()
 	 hide_image(wnd.anchor)
 	 for _,v in ipairs(wnd.event_hooks) do
@@ -1032,7 +1021,6 @@ local function window_mousebutton(ctx, _, ind, act)
 			if (wm.swap_window1 == nil) then
 				 -- First window selection
 				 wm.swap_window1 = ctx
-				 print("Selected first window for swap.")
 			elseif (wm.swap_window1 ~= ctx) then
 				 -- Second window selection and swap
 				 local window1 = wm.swap_window1
@@ -1058,22 +1046,14 @@ local function window_mousebutton(ctx, _, ind, act)
 							 if index1 and index2 then
 									-- Swap the windows in the tag
 									tag[index1], tag[index2] = tag[index2], tag[index1]
-									print("Swapped windows.")
 									window.arrange() -- Re-arrange windows
-							 else
-									print("One or both windows not found in tag.")
 							 end
-						else
-							 print("Current tag not found.")
 						end
-				 else
-						print("One or both swap windows were nil")
 				 end
 
 				 -- Reset swap state
 				 wm.swap_window1 = nil
 			else
-				 print("Cannot swap a window with itself")
 				 wm.swap_window1 = nil
 			end
 			return -- Prevent further processing
@@ -1082,7 +1062,6 @@ local function window_mousebutton(ctx, _, ind, act)
 	 if (act and ind == 3 and wm.mod_key_pressed) then
 			if ctx.tags and ctx.tags[wm.current_tag] then
 				 ctx.tags[wm.current_tag].force_size = not ctx.tags[wm.current_tag].force_size
-				 print(ctx.tags[wm.current_tag].force_size)
 				 wm.arrange() -- Re-arrange windows
 			end
 			return
@@ -1236,10 +1215,6 @@ window.new_window = function(vid, aid, opts)
 			maximize = window_maximize,
 			update_tprops = window_update_tprops,
 			paste = window_paste,
-
-			-- projectable toggles
-			delete_protect = opts.delete_protect,
-			select_block = opts.select_block,
 
 			-- toggles
 			autocrop = opts.autocrop,

@@ -65,11 +65,7 @@ variables.fuse_tags = function(tag_one, tag_two)
 	 local ttwo = tonumber(tag_two)
 
 	 if tone and ttwo then
-			print("fusing tags:", tone, ttwo)
 			wm.fuse_tags(tone, ttwo)
-			wm.view_tag(tone)
-	 else
-			print("Invalid tags to fuse", tone, ttwo)
 	 end
 end
 

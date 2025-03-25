@@ -433,23 +433,16 @@ actions.fuse_tags = function(tag_index1, tag_index2)
 			return
 	 end
 
-	 -- Reassign windows from tag_index2 to tag_index1
-	 for _, wnd in ipairs(wm.tags[tag_index2]) do
-			assign_tag(tag_index1, wnd)
+	 -- Move windows from tag_index2 to tag_index1
+	 for i = #wm.tags[tag_index2], 1, -1 do
+			local wnd = wm.tags[tag_index2][i]
+			table.insert(wm.tags[tag_index1], wnd)
+			table.remove(wm.tags[tag_index2], i)
 	 end
-
-   -- Remove tag index from windows in tag_index2
-	 for _, wnd in ipairs(wm.tags[tag_index2]) do
-			assign_tag(tag_index2, wnd)
-	 end
-
-	 -- Reset tag_index2
-	 --wm.tags[tag_index2] = {}
 
 	 print("fuse_tags: Tag", tag_index2, "fused into tag", tag_index1)
 end
 
--- TODO: not working properly
 local function fuse_all_tags()
 	 local num_tags = #wm.tags
 
@@ -547,7 +540,5 @@ actions.center_window = wrun(function(wnd)
 			wnd.tags[wm.current_tag].force_size = false
 			wnd:move(center_x, center_y)
 end)
-
--- actions["terminal"] = actions.terminal
 
 return actions

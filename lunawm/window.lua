@@ -46,7 +46,7 @@ defevhs["resized"] = function(wnd, source, status)
 						wnd:resize(wnd.tags[current_tag].width, wnd.tags[current_tag].height)
 				 end
 			else
-				 wnd:resize(status.width, status.height, true)
+				 wnd:resize(status.width, status.height)
 			end
 			wnd:update_tprops()
 	 end
@@ -549,7 +549,7 @@ local function build_decorations(wnd, opts)
 				 own = wnd.decor.r,
 				 ul_near = false,
 				 motion = decor_v_over,
-				 drag = decor_v_drag,
+				 -- drag = decor_v_drag,
 				 click = decor_sel,
 				 drop = decor_drop,
 				 out = decor_reset
@@ -560,7 +560,7 @@ local function build_decorations(wnd, opts)
 				 own = wnd.decor.t,
 				 ul_near = true,
 				 motion = decor_h_over,
-				 drag = decor_h_drag,
+				 -- drag = decor_h_drag,
 				 click = decor_sel,
 				 out = decor_reset,
 				 drop = decor_drop
@@ -571,7 +571,7 @@ local function build_decorations(wnd, opts)
 				 own = wnd.decor.l,
 				 ul_near = true,
 				 motion = decor_v_over,
-				 drag = decor_v_drag,
+				 -- drag = decor_v_drag,
 				 click = decor_sel,
 				 out = decor_reset,
 				 drop = decor_drop
@@ -612,7 +612,7 @@ window.rebuild_all_decorations = function()
 	 end
 end
 
-local function window_resize(wnd, neww, newh, nofwd)
+local function window_resize(wnd, neww, newh)
 	 local pad_v = wnd.margin.t - wnd.margin.b
 	 local pad_h = wnd.margin.l - wnd.margin.r
 
@@ -632,16 +632,8 @@ local function window_resize(wnd, neww, newh, nofwd)
 	 window_decor_resize(wnd, neww, newh)
 
 	 local current_tag = wm.current_tag
-	 local tag_data = wnd.tags[current_tag]
 
-	 if (not tag_data) then
-			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
-	 end
-
-	 if ((neww ~= tag_data.width or newh ~= tag_data.height)
-			and not nofwd and valid_vid(wnd.target, TYPE_FRAMESERVER)) then
-			target_displayhint(wnd.target, neww, newh)
-	 end
+	 target_displayhint(wnd.target, neww, newh)
 
 	 if (wnd.defer_x) then
 			move_image(wnd.anchor, wnd.defer_x, wnd.defer_y)

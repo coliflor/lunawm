@@ -13,7 +13,6 @@ return {
 	 window_gap_left = 40,
 	 window_gap_right = 40,
 
-
 	 -- input tuning
 	 keymap = "default.lua",
 	 drag_resize_inertia = 8,
@@ -50,4 +49,6 @@ return {
 	 border_alpha = 0.8,
 	 active_color = {252, 194, 110},
 	 inactive_color = {45, 43, 83},
+
+	 debug_mode = false,
 }

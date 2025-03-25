@@ -120,8 +120,7 @@ variables.window_status = function(aident, atag, awidth, aheight, pos_x, pos_y)
 
 						-- Check if wnd.tags[tag] already exists
 						if wnd.tags and wnd.tags[tag] then
-							 -- Delete existing data
-							 wnd.tags[tag] = {};
+							 wnd.tags[tag] = {}; -- Delete existing data
 						end;
 
 						-- Assign the window to the tag
@@ -158,14 +157,5 @@ variables.window_no_decor = function(aident, decor)
 			wm.arrange()
 	 end
 end
-
--- variables["gaps"] = variables.gaps
--- variables["border"] = variables.border
--- variables["window_gaps"] = variables.window_gaps
--- variables["fuse_tags"] = variables.fuse_tags
--- variables["view_tag"] = variables.view_tag
--- variables["window_pos"] = variables.window_pos
--- variables["window_size"] = variables.window_size
--- variables["window_no_decor"] = variables.window_no_decor
 
 return variables

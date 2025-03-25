@@ -34,9 +34,25 @@ wm = {
 	 set_layout_mode = {},
 	 rebuild_all_decorations = {},
 	 client_event_handler = {},
+
+	 debug_message = "",
 }
 
-local debug = true
+local last_msg
+local function system_message(str)
+	 local msg, _, _, h = render_text({[[\#000000]] .. str})
+	 if (valid_vid(last_msg)) then
+			delete_image(last_msg)
+	 end
+	 last_msg = msg
+
+	 if (valid_vid(msg)) then
+			expire_image(msg, 50)
+			move_image(msg, 0, VRESH - h)
+			show_image(msg)
+			order_image(msg, 65535)
+	 end
+end
 
 function lunawm()
 
@@ -121,7 +137,11 @@ function lunawm()
 	 wm.sym:load_keymap(wm.cfg.keymap)
 
 	 -- try mouse- grab (if wanted)
-	 mouse_setup(BADID, 65535, 1, true, false)
+	 mouse_setup(BADID, {
+									order = 65535,
+									pickdepth = 1
+	 })
+
 	 mouse_cursor_sf(wm.cfg.mouse_cursor_scale, wm.cfg.mouse_cursor_scale)
 	 mouse_switch_cursor("def", true)
 
@@ -129,29 +149,13 @@ function lunawm()
 	 lunawm_update_density(VPPCM)
 
 	 target_alloc(wm.cfg.conn_point, wm.client_event_handler)
-end
 
-local last_msg
-local function system_message(str)
-	 local msg, _, _, h = render_text({wm.cfg.terminal_font[1], str})
-	 if (valid_vid(last_msg)) then
-			delete_image(last_msg)
+	 if wm.cfg.debug_mode == true then
+			wm.debug_message = system_message
+	 else
+			wm.debug_message = function() end
 	 end
-	 last_msg = msg
 
-	 if (valid_vid(msg)) then
-			expire_image(msg, 50)
-			move_image(msg, 0, VRESH - h)
-			show_image(msg)
-			order_image(msg, 65535)
-	 end
-end
-
-local debug_message
-if debug == true then
-	 debug_message = system_message
-else
-	 debug_message = function() end
 end
 
 -- Function to set the mod key state
@@ -191,7 +195,7 @@ function lunawm_normal_input(iotbl)
 				 wm.sym.prefix = nil
 			end
 
-			debug_message(string.format(
+			wm.debug_message(string.format(
 											 "resolved symbol: %s, binding? %s, action? %s", b,
 											 wm.bindings[b] and wm.bindings[b] or "[missing]",
 											 (wm.bindings[b] and wm.actions[wm.bindings[b]]) and "yes" or "no"))

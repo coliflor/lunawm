@@ -9,6 +9,8 @@ new_globals = {
 	"lunawm_update_density",
 	"lunawm_input",
 	"VRES_AUTORES",
+	"RENDERTARGET_DETACH",
+	"RENDERTARGET_SCALE",
 
 	-- arcan
 	"TYPE_FRAMESERVER",
@@ -28,6 +30,8 @@ new_globals = {
 	"ANCHOR_UR",
 	"ANCHOR_UL",
 	"ANCHOR_LL",
+	"FORMAT_PNG_FLIP",
+	"FORMAT_PNG",
 
 	"switch_default_texfilter",
 	"image_surface_properties",
@@ -65,6 +69,7 @@ new_globals = {
 	"link_image",
 	"hide_image",
 	"nudge_image",
+	"rotate_image",
 	"kbd_repeat",
 	"system_load",
 	"audio_gain",
@@ -87,6 +92,9 @@ new_globals = {
 	"resource",
 	"launch_target",
 	"accept_target",
+	"save_screenshot",
+	"alloc_surface",
+	"define_recordtarget",
 
  	"render_text",
 

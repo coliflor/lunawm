@@ -43,6 +43,9 @@ return {
 	 [M2 .. "c"] = "copy",
 
 	 -- tag manipulation
+	 [M2 .. "a"] = "cycle_tags_negative",
+	 [M2 .. "s"] = "cycle_tags",
+
 	 [M2 .. "q"] = "view_tag_1",
 	 [M2 .. "w"] = "view_tag_2",
 	 [M2 .. "e"] = "view_tag_3",
@@ -63,6 +66,8 @@ return {
 	 [M2 .. "4"] = "assign_tag_4",
 	 [M2 .. "5"] = "assign_tag_5",
 
+	 [M2 .. "x"] = "fuse_all_tags",
+
 	 --
 	 [M2 .. "z"] = "destroy_active_window", -- Close window
 
@@ -77,8 +82,6 @@ return {
 
 	 [M2 .. "n"] = "swap_child_windows",
 	 [M3 .. "n"] = "swap_child_windows_negative",
-
-	 [M2 .. "x"] = "fuse_all_tags",
 
 	 [M2 .. "g"] = "window_stacked",
 	 [M3 .. "g"] = "window_floating",

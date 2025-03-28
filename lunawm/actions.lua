@@ -163,14 +163,14 @@ actions.cycle_layout_negative = function()
 end
 
 actions.reset_layout = function()
-    local default_mode = wm.cfg.default_layout_mode
+	 local default_mode = wm.cfg.default_layout_mode
 
-    if not default_mode or not wm.arrangers[default_mode] then
-        return
-    end
+	 if not default_mode or not wm.arrangers[default_mode] then
+			return
+	 end
 
-		wm.tags[wm.current_tag].layout_mode = default_mode
-    wm.arrange()
+	 wm.tags[wm.current_tag].layout_mode = default_mode
+	 wm.arrange()
 end
 
 -- Function to rotate through the window stack (positive direction) within the current tag
@@ -541,5 +541,107 @@ actions.center_window = wrun(function(wnd)
 			wnd:move(center_x, center_y)
 			wm.arrange()
 end)
+
+actions.cycle_tags = function()
+	 if not wm.cfg or not wm.cfg.num_tags or wm.cfg.num_tags < 1 then
+			return
+	 end
+
+	 local current_tag = wm.current_tag or 1
+	 local next_tag = current_tag + 1
+
+	 if next_tag > wm.cfg.num_tags then
+			next_tag = 1
+	 end
+
+	 wm.view_tag(next_tag)
+end
+
+actions.cycle_tags_negative = function()
+	 if not wm.cfg or not wm.cfg.num_tags or wm.cfg.num_tags < 1 then
+			return
+	 end
+
+	 local current_tag = wm.current_tag or 1
+	 local previous_tag = current_tag - 1
+
+	 if previous_tag < 1 then
+			previous_tag = wm.cfg.num_tags
+	 end
+
+	 wm.view_tag(previous_tag)
+end
+
+-- screenshot of a window without its decorations
+actions.window_screenshot = wrun(function(wnd)
+			local val = os.date("%Y-%m-%d_%H-%M-%S") -- Generate a timestamp for the filename
+			local filename = "output/" .. val .. ".png"
+
+			save_screenshot(filename, FORMAT_PNG, wnd.canvas)
+end)
+
+actions.system_screenshot = function()
+	 local val = os.date("%Y-%m-%d_%H-%M-%S") -- Generate a timestamp for the filename
+	 local filename = "output/" .. val
+
+	 save_screenshot(filename, FORMAT_PNG_FLIP, WORLDID)
+end
+
+-- TODO stops recording on high resolutions
+local function window_recording(wnd, filename, args)
+
+	 if (not valid_vid(wnd.canvas)) then
+			return;
+	 end
+
+	 if (wnd.wshare_slot) then
+			delete_image(wnd.share_slot);
+			wnd.wshare_slot = nil;
+	 else
+			local isp = image_storage_properties(wnd.canvas);
+			local indir = null_surface(isp.width, isp.height)
+			wnd.wshare_slot = alloc_surface(isp.width, isp.height, true)
+
+			show_image(indir)
+			image_sharestorage(wnd.canvas, indir)
+			define_recordtarget(wnd.wshare_slot, filename, args or "", {indir}, {}, RENDERTARGET_DETACH, RENDERTARGET_SCALE,
+													-1,function(_, _) end)
+	 end
+end
+
+-- stop recording for the current window by rerunning this function
+actions.window_record = wrun(function(wnd)
+			local val = os.date("%Y-%m-%d_%H-%M-%S")
+			local filename  = "output/" .. val .. ".mkv"
+			local args = "vpreset=8:noaudio:fps=25"
+			window_recording(wnd, filename, args)
+end)
+
+-- TODO: fliped lmao
+local function screen_recording(filename, args)
+	 if (wm.share_slot) then
+			delete_image(wm.share_slot);
+			wm.share_slot = nil;
+	 else
+			local isp = image_storage_properties(WORLDID);
+			local indir = null_surface(isp.width, isp.height)
+			wm.share_slot = alloc_surface(isp.width, isp.height, true)
+
+			show_image(indir)
+			image_sharestorage(WORLDID, indir)
+			--rotate_image(indir, 180)
+			define_recordtarget(wm.share_slot, filename, args or "", {indir}, {}, RENDERTARGET_DETACH, RENDERTARGET_SCALE,
+													-4,function(_, _) end)
+	 end
+end
+
+-- stop recording for by rerunning this function
+actions.screen_record = function()
+	 local val = os.date("%Y-%m-%d_%H-%M-%S")
+	 local filename  = "output/" .. val .. ".mkv"
+	 local args = "vpreset=8:noaudio:fps=25"
+	 screen_recording(filename, args)
+end
+
 
 return actions

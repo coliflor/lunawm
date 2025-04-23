@@ -1,0 +1,180 @@
+* Intro
+
+This project provides a lightweight and flexible window manager specifically designed for the Arcan display server. Written in Lua, it offers a customizable environment for managing and arranging your application windows efficiently. Through its scriptable nature, users can tailor the window management behavior to suit their individual workflows and preferences.
+
+Currently it only supports applications written in arcan shmif so wayland/xwayland x11 applications wont work, the support for none shmif is not contemplated and probably wont ever be added. Lunawm source code is based upon prio Rio like Window Manager for Arcan.
+
+To lanuch the program simply cd into the directory and run:
+#+begin_src
+arcan ./lunawm
+#+end_src
+
+lunawm was tested with arcan 0.7.0.1
+
+* Licensing
+Luna
+Prio is licensed in the 3-clause BSD format that can be found in the LICENSE file.
+The included terminal font, Hack-Bold is (c) Chris Simpkins and licensed under the Apache-2.0 license.
+The included UI font, designosaur, is provided free (cc-by 3.0 attribution) by Archy Studio, http://www.archystudio.com
+The included fallback font, Emoji-One, is provided free (cc-by 4.0 attribution) by http://emojione.com
+* Actions
+
+This section describes the various actions supported by the Lua-based window manager for the Arcan display server. These actions can be typically bound to key combinations or other events to control the window manager and interact with windows.
+
+- Core Actions
+  + terminal: Opens a new terminal window. Relies on `wm.terminal()`.
+  + shutdown: Initiates the Arcan display server shutdown.
+  + reset: Triggers a system-wide collapse (`system_collapse()`).
+
+- Tag Management
+  + view_tag (tag_number): Switches the view to the specified tag.
+    - Takes an integer `tag_number`.
+    - Invalid tag numbers are ignored.
+    - Records the previous tag in `wm.last_tag`.
+    - Shows windows on the target tag, restoring size/position if available.
+    - Hides windows not on the target tag and not on other visible tags.
+    - Triggers `wm.arrange()`.
+  + view_tag_1 to view_tag_5: Convenience functions for switching to tags 1-5.
+  + swap_last_current_tag: Switches to the last viewed tag (`wm.last_tag`).
+
+- Window Management
+  + destroy_active_window: Closes the currently focused window (if valid).
+  + shrink_h: Decreases window height, unforces size, and arranges.
+  + shrink_w: Decreases window width, unforces size, and arranges.
+  + grow_h: Increases window height, unforces size, and arranges.
+  + grow_w: Increases window width, unforces size, and arranges.
+  + move_up: Moves window up, unforces size, and arranges.
+  + move_down: Moves window down, unforces size, and arranges.
+  + move_left: Moves window left, unforces size, and arranges.
+  + move_right: Moves window right, unforces size, and arranges.
+  + toggle_maximize: Toggles window maximization ("f").
+  + assign_top: Maximizes window to the top ("t").
+  + assign_bottom: Maximizes window to the bottom ("b").
+  + assign_left: Maximizes window to the left ("l").
+  + assign_right: Maximizes window to the right ("r").
+  + toggle_fullscreen: Toggles window fullscreen ("f").
+  + fassign_top: Makes window fullscreen on top ("t").
+  + fassign_bottom: Makes window fullscreen on bottom ("b").
+  + fassign_left: Makes window fullscreen on left ("l").
+  + fassign_right: Makes window fullscreen on right ("r").
+  + set_temp_prefix_1: Sets temporary window symbol prefix to `"t1_"`.
+  + hide: Hides the currently focused window.
+  + copy: Copies clipboard message from focused window to `wm.clip` (if available).
+  + paste: Pastes `wm.clip` content to the focused window.
+
+- Layout Management
+  + cycle_layout: Cycles to the next layout in `wm.layout_modes`.
+  + cycle_layout_negative: Cycles to the previous layout in `wm.layout_modes`.
+  + reset_layout: Sets the current tag's layout to `wm.cfg.default_layout_mode` and arranges.
+
+- Window Stack Rotation
+  + rotate_window_stack: Rotates window order in the current tag (positive).
+  + rotate_window_stack_negative: Rotates window order in the current tag (negative).
+
+- Master/Child Window Swapping
+  + swap_master: Swaps focused window with the master.
+  + swap_child_windows: Swaps focused child with the next child.
+  + swap_child_windows_negative: Swaps focused child with the previous child.
+
+- Master Area Adjustment
+  + increase_master_width: Increases master area width (up to 95%).
+  + decrease_master_width: Decreases master area width (down to 10%).
+
+- Tag Assignment
+  + assign_tag (tag_index, wnd): Assigns a window to a tag, removing if already present on that tag (and on others).
+  + assign_tag_1 to assign_tag_5: Assign focused window to tags 1-5.
+
+- Tag Fusion
+  + fuse_tags (tag_index1, tag_index2): Moves all windows from tag2 to tag1.
+  + fuse_all_tags: Moves all windows to the first tag.
+
+- Window Movement to Specific Tags
+  + move_window_to_tag (wnd, target_tag_index): Moves a window to a specified tag.
+  + move_window_to_tag_1 to move_window_to_tag_5: Move focused window to tags 1-5.
+
+- Window Stacking and Floating
+  + window_stacked: Forces the focused window to be stacked.
+  + window_floating: Allows the focused window to be floating.
+  + center_window: Centers the focused window on the screen.
+
+- Tag Cycling
+  + cycle_tags: Switches to the next tag.
+  + cycle_tags_negative: Switches to the previous tag.
+
+- Screenshots and Recording
+  + window_screenshot: Saves a screenshot of the focused window.
+  + system_screenshot: Saves a screenshot of the entire screen.
+  + window_record: Starts/stops recording a video of the focused window.
+  + screen_record: Starts/stops recording a video of the entire screen.
+
+* Keybinds
+
+This section describes the default keybindings for the Lua-based window manager. These key combinations trigger the actions defined in the `actions.lua` file, allowing you to control various aspects of the window manager.
+
+- Modifiers
+  + M2: Left Alt key (`lalt_`)
+  + M3: Left Alt and Left Ctrl keys (`lalt_lctrl_`)
+
+- Window Positioning / Sizing
+  + ~M3 + j~: Move the focused window up.
+  + ~M3 + k~: Move the focused window down.
+  + ~M3 + h~: Move the focused window left.
+  + ~M3 + l~: Move the focused window right.
+  + ~M3 + a~: Shrink the height of the focused window.
+  + ~M3 + s~: Grow the height of the focused window.
+  + ~M3 + d~: Shrink the width of the focused window.
+  + ~M3 + f~: Grow the width of the focused window.
+  + ~M3 + f~: Toggle the maximization state of the focused window.
+  + ~M2 + f~: Toggle the fullscreen state of the focused window.
+  + ~M2 + 6~: Assign the focused window to the top half of the screen (maximize to top).
+  + ~M2 + 7~: Assign the focused window to the bottom half of the screen (maximize to bottom).
+  + ~M2 + 8~: Assign the focused window to the left half of the screen (maximize to left).
+  + ~M2 + 9~: Assign the focused window to the right half of the screen (maximize to right).
+  + ~M3 + 6~: Make the focused window fullscreen on the top part of the screen.
+  + ~M3 + 7~: Make the focused window fullscreen on the bottom part of the screen.
+  + ~M3 + 8~: Make the focused window fullscreen on the left part of the screen.
+  + ~M3 + 9~: Make the focused window fullscreen on the right part of the screen.
+
+- Other Actions
+  + ~M2 + p~: Open a new terminal window.
+  + ~M2 + ESCAPE~: Initiate the shutdown of the Arcan display server.
+  + ~M3 + TAB~: Reset the Arcan system.
+  + ~M2 + v~: Paste the content of the window manager's clipboard to the focused window.
+  + ~M2 + c~: Copy the clipboard content from the focused window to the window manager's clipboard.
+
+- Tag Manipulation
+  + ~M2 + a~: Cycle to the previous tag.
+  + ~M2 + s~: Cycle to the next tag.
+  + ~M2 + q~: Switch to tag 1.
+  + ~M2 + w~: Switch to tag 2.
+  + ~M2 + e~: Switch to tag 3.
+  + ~M2 + r~: Switch to tag 4.
+  + ~M2 + t~: Switch to tag 5.
+  + ~M2 + TAB~: Switch to the last viewed tag.
+  + ~M3 + q~: Move the focused window to tag 1.
+  + ~M3 + w~: Move the focused window to tag 2.
+  + ~M3 + e~: Move the focused window to tag 3.
+  + ~M3 + r~: Move the focused window to tag 4.
+  + ~M3 + t~: Move the focused window to tag 5.
+  + ~M2 + 1~: Assign the focused window to tag 1. If already assigned, it might remove it if present on other tags.
+  + ~M2 + 2~: Assign the focused window to tag 2. If already assigned, it might remove it if present on other tags.
+  + ~M2 + 3~: Assign the focused window to tag 3. If already assigned, it might remove it if present on other tags.
+  + ~M2 + 4~: Assign the focused window to tag 4. If already assigned, it might remove it if present on other tags.
+  + ~M2 + 5~: Assign the focused window to tag 5. If already assigned, it might remove it if present on other tags.
+  + ~M2 + x~: Fuse all windows from all tags into the first tag.
+  + ~M2 + z~: Destroy (close) the currently focused window.
+
+- Layout Control
+  + ~M2 + y~: Reset the layout of the current tag to the default.
+  + ~M2 + u~: Cycle to the next layout mode.
+  + ~M3 + u~: Cycle to the previous layout mode.
+  + ~M2 + k~: Rotate the order of windows in the current tag (next window becomes focused/moves to the front).
+  + ~M2 + j~: Rotate the order of windows in the current tag (previous window becomes focused/moves to the front).
+  + ~M2 + l~: Decrease the width of the master area (for tiling layouts).
+  + ~M2 + h~: Increase the width of the master area (for tiling layouts).
+  + ~M2 + m~: Swap the focused window with the master window.
+  + ~M2 + n~: Swap the focused child window with the next child window.
+  + ~M3 + n~: Swap the focused child window with the previous child window.
+  + ~M2 + g~: Force the focused window to be stacked.
+  + ~M3 + g~: Allow the focused window to be floating.
+  + ~M2 + d~: Center the focused window on the screen.

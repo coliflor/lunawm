@@ -1,5 +1,7 @@
 * Intro
 
+[[./screenshot.png]]
+
 This project provides a lightweight and flexible window manager specifically designed for the Arcan display server. Written in Lua, it offers a customizable environment for managing and arranging your application windows efficiently. Through its scriptable nature, users can tailor the window management behavior to suit their individual workflows and preferences.
 
 Currently it only supports applications written in arcan shmif so wayland/xwayland x11 applications wont work, the support for none shmif is not contemplated and probably wont ever be added. Lunawm source code is based upon prio Rio like Window Manager for Arcan.

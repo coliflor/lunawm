@@ -3,6 +3,18 @@ local dirtbl = {"l", "r", "t", "b"}
 local wndlist = {}
 local hidden = {}
 
+local atypes = {
+	 ["application"] = {
+			atype = "application",
+			props = {
+				 scalemode = "client",
+				 filtermode = FILTER_NONE,
+				 rate_unlimited = false,
+				 allowed_segments = {"application", "popup", "handover", "icon", "cursor"}
+			}
+	 }
+}
+
 -- ----------------------------------------------------
 --  helper functions for window spawn
 -- ----------------------------------------------------
@@ -82,6 +94,31 @@ defevhs["segment_request"] =
 							 wnd:over()
 						end
 				 end
+			elseif (stat.segkind == "application") then
+				 local new_vid = accept_target()
+
+				 if (not valid_vid(new_vid)) then
+						return
+				 end
+
+				 wm.client_event_handler(new_vid, {
+																		kind = "preroll",
+																		source = new_vid,
+																		segkind = "app",
+																		wnd = wnd
+				 })
+			elseif (stat.segkind == "popup") then
+				 local new_vid = accept_target()
+
+				 if (not valid_vid(new_vid)) then
+						return
+				 end
+
+				 wm.client_event_handler(new_vid, {
+																		kind = "preroll",
+																		source = new_vid,
+																		segkind = "popup"
+				 })
 			end
 	 end
 
@@ -106,13 +143,24 @@ local function send_type_data(source, segkind)
 	 end
 end
 
-local function setup_wnd(vid, aid, opts)
+local function setup_wnd(vid, aid, opts, atype_name)
 	 if (not valid_vid(vid, TYPE_FRAMESERVER)) then
 			return
 	 end
 
-	 local wnd = window.new_window(vid, aid, opts) -- Get the window object returned by new_window
-	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor}) -- Pass the anchor
+	 local wnd = window.new_window(vid, aid, opts)
+
+	 -- Apply atype properties if a valid atype is provided
+	 if atype_name and atypes[atype_name] then
+			local props = atypes[atype_name].props
+			wnd.scalemode = props.scalemode
+			wnd.filtermode = props.filtermode
+			wnd.rate_unlimited = props.rate_unlimited
+			wnd.allowed_segments = props.allowed_segments
+			wnd.atype = props.atype
+	 end
+
+	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor})
 	 return wnd
 end
 
@@ -136,7 +184,7 @@ window.client_event_handler = function(source, status)
 						no_decor = true,
 				 }
 
-				 local wnd = setup_wnd(source, status.source_audio, proptbl)
+				 local wnd = setup_wnd(source, status.source_audio, proptbl, "application")
 
 				 table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
 
@@ -153,7 +201,62 @@ window.client_event_handler = function(source, status)
 				 send_type_data(source, "statusbar")
 
 				 wnd:select()
-			else
+			elseif status.segkind == "application" then
+				 print("application " .. status.kind .. " " .. status.segkind)
+				 proptbl = {
+						x = 0,
+						y = 0,
+						w = 32,
+						h = 32,
+						autocrop = false,
+						no_decor = false,
+				 }
+				 local wnd = window.create_dummy_wnd(source, status.source_audio, proptbl)
+				 --table.insert(wm.tags[wm.current_tag], wnd)
+
+				 target_updatehandler(source, group_handler)
+				 send_type_data(source, "terminal")
+
+			elseif status.segkind == "app" then
+				 print("app " .. status.kind .. " " .. status.segkind)
+				 proptbl = {
+						x = 0,
+						y = 0,
+						w = 32,
+						h = 32,
+						autocrop = false,
+						no_decor = false,
+				 }
+				 local wnd = setup_wnd(source, status.source_audio, proptbl, "application")
+				 table.insert(wm.tags[wm.current_tag], wnd)
+
+				 wnd.tags[wm.current_tag].force_size = true
+				 window.arrange()
+
+				 target_updatehandler(source, group_handler)
+				 send_type_data(source, "terminal")
+
+				 wnd:select()
+			elseif status.segkind == "popup" then
+				 print("2 " .. status.kind .. " " .. status.segkind)
+				 proptbl = {
+						x = 0,
+						y = 0,
+						w = 32,
+						h = 32,
+						autocrop = false,
+						no_decor = true,
+				 }
+
+				 local wnd = setup_wnd(source, status.source_audio, proptbl, "application")
+				 table.insert(wm.tags[wm.current_tag], wnd)
+
+				 wnd.tags[wm.current_tag].force_size = false
+
+				 target_updatehandler(source, group_handler)
+				 send_type_data(source, "terminal")
+			elseif  status.segkind == "terminal"  then
+				 print("else " .. status.kind .. " " .. status.segkind)
 				 local proptbl = {
 						x = 0,
 						y = 0,
@@ -162,7 +265,7 @@ window.client_event_handler = function(source, status)
 						autocrop = true,
 				 }
 
-				 local wnd = setup_wnd(source, status.source_audio, proptbl)
+				 local wnd = setup_wnd(source, status.source_audio, proptbl, "application")
 
 				 table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
 
@@ -180,8 +283,9 @@ window.client_event_handler = function(source, status)
 
 				 wnd:select()
 			end
-
 			--elseif status.kind == "segment_request" and status.segkind == "clipboard" then
+	 else
+			print(status.kind .. " " .. status.segkind)
 	 end
 end
 
@@ -660,7 +764,9 @@ local function window_resize(wnd, neww, newh)
 
 	 local current_tag = wm.current_tag
 
-	 target_displayhint(wnd.target, neww, newh)
+	 if wnd.target and valid_vid(wnd.target, TYPE_FRAMESERVER) then
+			target_displayhint(wnd.target, neww, newh)
+	 end
 
 	 if (wnd.defer_x) then
 			move_image(wnd.anchor, wnd.defer_x, wnd.defer_y)
@@ -719,7 +825,7 @@ local function window_select(wnd)
 	 table.insert(wndlist, wnd)
 
 	 wm.window = wnd
-	 if (valid_vid(wnd.target)) then
+	 if (valid_vid(wnd.target, TYPE_FRAMESERVER)) then
 			wnd.dispmask = (bit.band(wnd.dispmask, bit.bnot(TD_HINT_UNFOCUSED)))
 			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
 	 end
@@ -733,7 +839,7 @@ local function window_select(wnd)
 end
 
 local function window_deselect(wnd)
-	 if (valid_vid(wnd.target)) then
+	 if (valid_vid(wnd.target, TYPE_FRAMESERVER)) then
 			wnd.dispmask = bit.bor(wnd.dispmask, TD_HINT_UNFOCUSED)
 			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
 	 end
@@ -1237,6 +1343,34 @@ end
 window.set_layout_mode = function(mode)
 	 wm.tags[wm.current_tag].layout_mode = mode
 	 window.arrange() -- Re-arrange windows after changing layout
+end
+
+window.create_dummy_wnd = function(vid, aid, opts)
+	 local wnd = {
+			target = vid,
+			tags = {},
+			event_hooks = {},
+			decor_mh = {},
+			is_statusbar = false,
+			lost = window_lost
+	 }
+
+	 wnd.tags[wm.current_tag] = {
+			width = opts.w,
+			height = opts.h
+	 }
+
+	 -- Assign methods to the dummy window
+	 wnd.resize = function() end
+	 wnd.move = function() end
+	 wnd.select = function() end
+	 wnd.deselect = function() end
+	 wnd.destroy = function() end
+	 wnd.border_color = function() end
+
+	 wm.windows[vid] = wnd
+
+	 return wnd
 end
 
 window.new_window = function(vid, aid, opts)

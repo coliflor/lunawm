@@ -6,15 +6,27 @@ local function arrange_master_middle_stack(tag)
 	 local gap_right = wm.cfg.window_gap_right or 0
 
 	 local visible_windows = {}
+	 local statusbar_wnd = nil
+	 local statusbar_height = wm.cfg.statusbar_height
+
 	 for _, wnd in ipairs(tag) do
-			-- Initialize wnd.tags if it's nil
 			if not wnd.tags then
 				 wnd.tags = {}
 			end
 
-			if wnd.tags[wm.current_tag].force_size == true then
+			if wnd.is_statusbar then
+				 statusbar_wnd = wnd
+			elseif wnd.tags[wm.current_tag] and wnd.tags[wm.current_tag].force_size == true then
 				 table.insert(visible_windows, wnd)
 			end
+	 end
+
+	 -- Handle the status bar separately if it exists
+	 if statusbar_wnd then
+			-- Position the status bar at the top of the screen
+			statusbar_wnd:move(0, 0)
+			statusbar_wnd:resize(VRESW, statusbar_height)
+			gap_top = gap_top + statusbar_height
 	 end
 
 	 local n = #visible_windows
@@ -35,8 +47,9 @@ local function arrange_master_middle_stack(tag)
 
 	 local master_ratio = wm.tags[wm.current_tag].master_ratio or 0.5
 
-	 local master_area_w = VRESW * master_ratio
-	 local master_area_h = VRESH - gap_top - gap_bottom
+	 local usable_height = VRESH - gap_top - gap_bottom
+	 local master_area_w = (VRESW - gap_left - gap_right) * master_ratio
+	 local master_area_h = usable_height
 	 local stack_area_w = (VRESW - master_area_w - gap) / 2 -- Gap between master and stacks
 
 	 -- Master window (n > 1)
@@ -64,8 +77,9 @@ local function arrange_master_middle_stack(tag)
 	 local left_n = #left_stack
 	 local right_n = #right_stack
 
-	 local left_stack_h = (master_area_h - (left_n - 1) * gap) / left_n
-	 local right_stack_h = (master_area_h - (right_n - 1) * gap) / right_n
+	 -- Only calculate stack height if there are windows in the stack to avoid division by zero
+	 local left_stack_h = (left_n > 0) and (master_area_h - (left_n - 1) * gap) / left_n or 0
+	 local right_stack_h = (right_n > 0) and (master_area_h - (right_n - 1) * gap) / right_n or 0
 
 	 -- Left Stack
 	 for i, wnd in ipairs(left_stack) do

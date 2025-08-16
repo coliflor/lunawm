@@ -126,31 +126,60 @@ window.client_event_handler = function(source, status)
 			target_alloc(wm.cfg.conn_point, wm.client_event_handler)
 			-- elseif status.kind == "registered" then
 	 elseif status.kind == "preroll" then
-			local proptbl = {
-				 x = 0,
-				 y = 0,
-				 w = 32,
-				 h = 32,
-				 autocrop = true,
-			}
+			if status.segkind == "icon" then
+				 local proptbl = {
+						x = 0,
+						y = 0,
+						w = VRESW,
+						h = 32,
+						autocrop = true,
+						no_decor = true,
+				 }
 
-			local wnd = setup_wnd(source, status.source_audio, proptbl)
+				 local wnd = setup_wnd(source, status.source_audio, proptbl)
 
-			table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
+				 table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
 
-			-- Ensure wnd.tags[tag_index] exists before assigning force_size
-			if not wnd.tags[wm.current_tag] then
-				 wnd.tags[wm.current_tag] = {}
+				 -- Ensure wnd.tags[tag_index] exists before assigning force_size
+				 if not wnd.tags[wm.current_tag] then
+						wnd.tags[wm.current_tag] = {}
+				 end
+
+				 wnd.is_statusbar = true
+
+				 window.arrange() -- Call arrange after adding the window
+
+				 target_updatehandler(source, group_handler)
+				 send_type_data(source, "statusbar")
+
+				 wnd:select()
+			else
+				 local proptbl = {
+						x = 0,
+						y = 0,
+						w = 32,
+						h = 32,
+						autocrop = true,
+				 }
+
+				 local wnd = setup_wnd(source, status.source_audio, proptbl)
+
+				 table.insert(wm.tags[wm.current_tag], wnd) -- Add window directly to tags
+
+				 -- Ensure wnd.tags[tag_index] exists before assigning force_size
+				 if not wnd.tags[wm.current_tag] then
+						wnd.tags[wm.current_tag] = {}
+				 end
+
+				 wnd.tags[wm.current_tag].force_size = true
+
+				 window.arrange() -- Call arrange after adding the window
+
+				 target_updatehandler(source, group_handler)
+				 send_type_data(source, "terminal")
+
+				 wnd:select()
 			end
-
-			wnd.tags[wm.current_tag].force_size = true
-
-			window.arrange() -- Call arrange after adding the window
-
-			target_updatehandler(source, group_handler)
-			send_type_data(source, "terminal")
-
-			wnd:select()
 
 			--elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 end
@@ -500,7 +529,7 @@ end
 local function build_decorations(wnd, opts)
 	 local bw = wm.cfg.border_width
 
-	 if bw == 0 or opts.no_decor == true then
+	 if bw == 0 or opts.no_decor == true or wnd.is_statusbar then
 			-- Remove old decorations
 			if wnd.decor then
 				 for _, decor in pairs(wnd.decor) do
@@ -606,6 +635,11 @@ window.rebuild_all_decorations = function()
 end
 
 local function window_resize(wnd, neww, newh)
+	 if wnd.is_statusbar then
+			neww = VRESW
+			newh = wm.cfg.statusbar_height
+	 end
+
 	 local pad_v = wnd.margin.t - wnd.margin.b
 	 local pad_h = wnd.margin.l - wnd.margin.r
 
@@ -829,6 +863,10 @@ local function window_destroy(wnd)
 end
 
 local function window_move(wnd, x, y)
+	 if wnd.is_statusbar then
+			return
+	 end
+
 	 move_image(wnd.anchor, x, y)
 
 	 -- Update tag-specific position
@@ -891,48 +929,48 @@ local function window_maximize(wnd, dir)
 end
 
 local function window_fullscreen(wnd, dir)
-    -- revert
-    if (wnd.maximized) then
-        wnd:move(wnd.maximized.x, wnd.maximized.y)
-        wnd:resize(wnd.maximized.w, wnd.maximized.h)
-        wnd.maximized = nil
-        return
-    end
+	 -- revert
+	 if (wnd.maximized) then
+			wnd:move(wnd.maximized.x, wnd.maximized.y)
+			wnd:resize(wnd.maximized.w, wnd.maximized.h)
+			wnd.maximized = nil
+			return
+	 end
 
-    -- let move/resize account for decorations
-    local props = image_surface_resolve_properties(wnd.anchor)
+	 -- let move/resize account for decorations
+	 local props = image_surface_resolve_properties(wnd.anchor)
 
-    local current_tag = wm.current_tag
-    local tag_data = wnd.tags[current_tag]
+	 local current_tag = wm.current_tag
+	 local tag_data = wnd.tags[current_tag]
 
-    if (not tag_data) then
-        tag_data = wnd.tags[get_first_tag_with_data(wnd)]
-    end
+	 if (not tag_data) then
+			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
+	 end
 
-    wnd.maximized = {
-        x = props.x, y = props.y,
-        w = tag_data.width, h = tag_data.height
-    }
+	 wnd.maximized = {
+			x = props.x, y = props.y,
+			w = tag_data.width, h = tag_data.height
+	 }
 
-    local pad_w = 0
-    local pad_h = 0
+	 local pad_w = 0
+	 local pad_h = 0
 
-    if (dir == "f") then
-        wnd:resize(VRESW - pad_w, VRESH - pad_h)
-        wnd:move(0, 0)
-    elseif (dir == "l") then
-        wnd:move(0, 0)
-        wnd:resize(math.floor(0.5 * VRESW), VRESH)
-    elseif (dir == "r") then
-        wnd:resize(math.floor(0.5 * VRESW), VRESH)
-        wnd:move(math.ceil(VRESW * 0.5), 0)
-    elseif (dir == "t") then
-        wnd:move(0, 0)
-        wnd:resize(VRESW, math.floor(0.5 * VRESH))
-    elseif (dir == "b") then
-        wnd:resize(VRESW, math.floor(0.5 * VRESH))
-        wnd:move(0, math.ceil(VRESH * 0.5))
-    end
+	 if (dir == "f") then
+			wnd:resize(VRESW - pad_w, VRESH - pad_h)
+			wnd:move(0, 0)
+	 elseif (dir == "l") then
+			wnd:move(0, 0)
+			wnd:resize(math.floor(0.5 * VRESW), VRESH)
+	 elseif (dir == "r") then
+			wnd:resize(math.floor(0.5 * VRESW), VRESH)
+			wnd:move(math.ceil(VRESW * 0.5), 0)
+	 elseif (dir == "t") then
+			wnd:move(0, 0)
+			wnd:resize(VRESW, math.floor(0.5 * VRESH))
+	 elseif (dir == "b") then
+			wnd:resize(VRESW, math.floor(0.5 * VRESH))
+			wnd:move(0, math.ceil(VRESH * 0.5))
+	 end
 end
 
 local function step_sz(wnd)
@@ -962,6 +1000,10 @@ local function window_step_sz(wnd, steps, xd, yd)
 end
 
 local function window_drag_move(wnd, x, y)
+	 if wnd.is_statusbar then
+			return
+	 end
+
 	 if (wnd.drag_data) then
 			local dx = x - wnd.drag_data.start_x
 			local dy = y - wnd.drag_data.start_y
@@ -1230,7 +1272,7 @@ window.new_window = function(vid, aid, opts)
 			ident = "",
 
 			-- decorations
-			decorations = true,
+			no_decor = true,
 			decor = {},
 			decor_mh = {},
 			margin = {t = 0, l = 0, r = 0, b = 0},
@@ -1267,6 +1309,7 @@ window.new_window = function(vid, aid, opts)
 			flip_y = opts.flip_y,
 
 			tags = {},
+			is_statusbar = false,
 	 }
 
 	 -- Initialize tags with default values

@@ -7,6 +7,9 @@ return {
 
 	 conn_point = "lunawm",
 
+	 -- statusbar
+	 statusbar_height = 32,
+
 	 --
 	 window_gap_top = 40,
 	 window_gap_bottom = 40,

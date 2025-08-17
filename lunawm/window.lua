@@ -178,7 +178,7 @@ window.client_event_handler = function(source, status)
 				 window.arrange() -- Call arrange after adding the window
 
 				 target_updatehandler(source, group_handler)
-				 send_type_data(source, "statusbar")
+				 --send_type_data(source, "statusbar")
 
 				 wnd:select()
 			elseif status.segkind == "application" then
@@ -193,7 +193,7 @@ window.client_event_handler = function(source, status)
 				 local wnd = window.create_dummy_wnd(source, status.source_audio, proptbl)
 
 				 target_updatehandler(source, group_handler)
-				 send_type_data(source, "terminal")
+				 --send_type_data(source, "terminal")
 
 			elseif status.segkind == "app" then
 				 local mx, my = mouse_xy()
@@ -212,7 +212,7 @@ window.client_event_handler = function(source, status)
 				 window.arrange()
 
 				 target_updatehandler(source, group_handler)
-				 send_type_data(source, "terminal")
+				 --send_type_data(source, "terminal")
 
 				 wnd:select()
 			elseif status.segkind == "popup" then
@@ -233,7 +233,7 @@ window.client_event_handler = function(source, status)
 				 wnd.is_popup = true
 
 				 target_updatehandler(source, group_handler)
-				 send_type_data(source, "terminal")
+				 --send_type_data(source, "terminal")
 
 				 wnd:select()
 			elseif  status.segkind == "terminal"  then
@@ -817,7 +817,8 @@ local function window_select(wnd)
 	 wm.window = wnd
 	 if (valid_vid(wnd.target, TYPE_FRAMESERVER)) then
 			wnd.dispmask = (bit.band(wnd.dispmask, bit.bnot(TD_HINT_UNFOCUSED)))
-			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
+			local props = image_surface_resolve_properties(wnd.anchor)
+			target_displayhint(wnd.target, props.width, props.height, wnd.dispmask)
 	 end
 	 wnd:border_color(unpack(wm.cfg.active_color))
 	 reorder_windows()
@@ -831,7 +832,8 @@ end
 local function window_deselect(wnd)
 	 if (valid_vid(wnd.target, TYPE_FRAMESERVER)) then
 			wnd.dispmask = bit.bor(wnd.dispmask, TD_HINT_UNFOCUSED)
-			target_displayhint(wnd.target, 0, 0, wnd.dispmask)
+			local props = image_surface_resolve_properties(wnd.anchor)
+			target_displayhint(wnd.target, props.width, props.height, wnd.dispmask)
 	 end
 	 wnd:border_color(unpack(wm.cfg.inactive_color))
 	 if (wm.window == wnd) then

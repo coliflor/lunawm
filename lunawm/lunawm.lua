@@ -196,9 +196,9 @@ function lunawm_normal_input(iotbl)
 			end
 
 			wm.debug_message(string.format(
-											 "resolved symbol: %s, binding? %s, action? %s", b,
-											 wm.bindings[b] and wm.bindings[b] or "[missing]",
-											 (wm.bindings[b] and wm.actions[wm.bindings[b]]) and "yes" or "no"))
+													"resolved symbol: %s, binding? %s, action? %s", b,
+													wm.bindings[b] and wm.bindings[b] or "[missing]",
+													(wm.bindings[b] and wm.actions[wm.bindings[b]]) and "yes" or "no"))
 
 			if (wm.bindings[b] and wm.actions[wm.bindings[b]]) then
 				 wm.actions[wm.bindings[b]]()
@@ -261,6 +261,7 @@ function VRES_AUTORES(w, h, vppcm, _, source)
 			wm.arrange()
 	 end
 
+	 mouse_querytarget(WORLDID)
 end
 
 wm.dump = function(o)

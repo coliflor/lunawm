@@ -3,18 +3,6 @@ local dirtbl = {"l", "r", "t", "b"}
 local wndlist = {}
 local hidden = {}
 
-local atypes = {
-	 ["application"] = {
-			atype = "application",
-			props = {
-				 scalemode = "client",
-				 filtermode = FILTER_NONE,
-				 rate_unlimited = false,
-				 allowed_segments = {"application", "popup", "handover", "icon", "cursor"}
-			}
-	 }
-}
-
 -- ----------------------------------------------------
 --  helper functions for window spawn
 -- ----------------------------------------------------
@@ -81,7 +69,9 @@ defevhs["segment_request"] =
 						function(src, stat_two)
 							 clipboard_handler(wnd, src, stat_two);
 				 end);
-				 link_image(wnd.clipboard_in, wnd.anchor);
+				 if wnd.anchor then
+						link_image(wnd.clipboard_in, wnd.anchor);
+				 end
 			elseif (stat.segkind == "cursor") then
 				 local new = accept_target(function(src, stat_two)
 							 cursor_handler(wnd, src, stat_two)
@@ -150,16 +140,6 @@ local function setup_wnd(vid, aid, opts, atype_name)
 
 	 local wnd = window.new_window(vid, aid, opts)
 
-	 -- Apply atype properties if a valid atype is provided
-	 if atype_name and atypes[atype_name] then
-			local props = atypes[atype_name].props
-			wnd.scalemode = props.scalemode
-			wnd.filtermode = props.filtermode
-			wnd.rate_unlimited = props.rate_unlimited
-			wnd.allowed_segments = props.allowed_segments
-			wnd.atype = props.atype
-	 end
-
 	 target_displayhint(vid, opts.w, opts.h, TD_HINT_IGNORE, {ppcm = VPPCM, anchor = wnd.anchor})
 	 return wnd
 end
@@ -202,7 +182,6 @@ window.client_event_handler = function(source, status)
 
 				 wnd:select()
 			elseif status.segkind == "application" then
-				 print("application " .. status.kind .. " " .. status.segkind)
 				 proptbl = {
 						x = 0,
 						y = 0,
@@ -212,19 +191,18 @@ window.client_event_handler = function(source, status)
 						no_decor = false,
 				 }
 				 local wnd = window.create_dummy_wnd(source, status.source_audio, proptbl)
-				 --table.insert(wm.tags[wm.current_tag], wnd)
 
 				 target_updatehandler(source, group_handler)
 				 send_type_data(source, "terminal")
 
 			elseif status.segkind == "app" then
-				 print("app " .. status.kind .. " " .. status.segkind)
+				 local mx, my = mouse_xy()
 				 proptbl = {
 						x = 0,
 						y = 0,
 						w = 32,
 						h = 32,
-						autocrop = false,
+						autocrop = true,
 						no_decor = false,
 				 }
 				 local wnd = setup_wnd(source, status.source_audio, proptbl, "application")
@@ -238,10 +216,10 @@ window.client_event_handler = function(source, status)
 
 				 wnd:select()
 			elseif status.segkind == "popup" then
-				 print("2 " .. status.kind .. " " .. status.segkind)
+				 local mx, my = mouse_xy()
 				 proptbl = {
-						x = 0,
-						y = 0,
+						x = mx,
+						y = my,
 						w = 32,
 						h = 32,
 						autocrop = false,
@@ -252,11 +230,13 @@ window.client_event_handler = function(source, status)
 				 table.insert(wm.tags[wm.current_tag], wnd)
 
 				 wnd.tags[wm.current_tag].force_size = false
+				 wnd.is_popup = true
 
 				 target_updatehandler(source, group_handler)
 				 send_type_data(source, "terminal")
+
+				 wnd:select()
 			elseif  status.segkind == "terminal"  then
-				 print("else " .. status.kind .. " " .. status.segkind)
 				 local proptbl = {
 						x = 0,
 						y = 0,
@@ -285,7 +265,7 @@ window.client_event_handler = function(source, status)
 			end
 			--elseif status.kind == "segment_request" and status.segkind == "clipboard" then
 	 else
-			print(status.kind .. " " .. status.segkind)
+			--print(status.kind .. " " .. status.segkind)
 	 end
 end
 
@@ -315,10 +295,13 @@ end
 local function reorder_windows()
 	 local stacked_windows = {}
 	 local non_stacked_windows = {}
+	 local popup_windows = {}
 
 	 -- Separate windows into stacked and non-stacked
 	 for _, wnd in ipairs(wndlist) do
-			if wnd.tags[wm.current_tag].force_size then
+			if wnd.is_popup then
+				 table.insert(popup_windows, wnd)
+			elseif wnd.tags[wm.current_tag].force_size then
 				 table.insert(stacked_windows, wnd)
 			else
 				 table.insert(non_stacked_windows, wnd)
@@ -334,6 +317,12 @@ local function reorder_windows()
 
 	 -- Reorder non-stacked windows after stacked windows
 	 for _, wnd in ipairs(non_stacked_windows) do
+			order_image(wnd.anchor, order)
+			order = order + 10
+	 end
+
+	 -- Reorder popups with the highest order number
+	 for _, wnd in ipairs(popup_windows) do
 			order_image(wnd.anchor, order)
 			order = order + 10
 	 end
@@ -578,6 +567,7 @@ local function decor_h_drag(ctx, vid, dx, dy)
 end
 
 local function decor_v_over(ctx, vid, _, y)
+
 	 if (ctx.wnd ~= wm.window) then
 			ctx.wnd:select()
 			return
@@ -633,7 +623,7 @@ end
 local function build_decorations(wnd, opts)
 	 local bw = wm.cfg.border_width
 
-	 if bw == 0 or opts.no_decor == true or wnd.is_statusbar then
+	 if bw == 0 or opts.no_decor == true or wnd.is_statusbar or wnd.is_popup then
 			-- Remove old decorations
 			if wnd.decor then
 				 for _, decor in pairs(wnd.decor) do
@@ -728,7 +718,7 @@ local function build_decorations(wnd, opts)
 			tag_data = wnd.tags[get_first_tag_with_data(wnd)]
 	 end
 
-	 window_decor_resize(wnd, tag_data.width, tag_data.height)
+	 --window_decor_resize(wnd, tag_data.width, tag_data.height)
 end
 
 window.rebuild_all_decorations = function()
